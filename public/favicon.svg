@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="8" fill="#0b1020"/>
+  <rect x="5" y="5" width="54" height="54" rx="4" fill="#321e22" stroke="#d6a43c" stroke-width="4"/>
+  <rect x="12" y="42" width="40" height="9" fill="#6f3c29" stroke="#d6a43c" stroke-width="3"/>
+  <path d="M18 38h28v5H18zm5-7h18v7H23z" fill="#d6a43c"/>
+  <text x="32" y="28" text-anchor="middle" fill="#fff1c5" font-size="22" font-weight="900" font-family="'PingFang HK','Noto Sans TC',sans-serif">判</text>
+</svg>

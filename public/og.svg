@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#090d1a"/>
+  <rect x="20" y="20" width="1160" height="590" fill="#11182a" stroke="#d7a93f" stroke-width="8"/>
+  <rect x="42" y="42" width="1116" height="546" fill="#24171b" stroke="#6d392c" stroke-width="6"/>
+
+  <g shape-rendering="crispEdges">
+    <rect x="72" y="72" width="242" height="332" fill="#1b2a43" stroke="#b88332" stroke-width="7"/>
+    <rect x="886" y="72" width="242" height="332" fill="#1b2a43" stroke="#b88332" stroke-width="7"/>
+    <path d="M92 95h24v72H92zm40-10h18v110h-18zm37 28h14v90h-14zm50-28h18v128h-18zm36 22h26v98h-26z" fill="#65738a" opacity=".7"/>
+    <path d="M906 95h24v72h-24zm40-10h18v110h-18zm37 28h14v90h-14zm50-28h18v128h-18zm36 22h26v98h-26z" fill="#65738a" opacity=".7"/>
+    <path d="M88 242l42 38 54-80 50 70 65-88M902 211l49 44 52-76 48 66 62-91" fill="none" stroke="#83a8be" stroke-width="6"/>
+    <rect x="0" y="430" width="1200" height="200" fill="#3b231c"/>
+    <rect x="330" y="412" width="540" height="124" fill="#6a3b27" stroke="#c19139" stroke-width="9"/>
+    <rect x="382" y="355" width="436" height="88" fill="#4b2a20" stroke="#9b6f2a" stroke-width="7"/>
+    <rect x="524" y="342" width="152" height="18" fill="#d5a642"/>
+    <rect x="564" y="312" width="72" height="30" fill="#8c5030"/>
+    <rect x="585" y="278" width="30" height="34" fill="#d5a642"/>
+    <rect x="165" y="315" width="102" height="122" fill="#562c2d"/>
+    <rect x="183" y="260" width="66" height="60" fill="#b67b58"/>
+    <rect x="174" y="245" width="84" height="34" fill="#2b1b20"/>
+    <rect x="191" y="282" width="10" height="10" fill="#111"/>
+    <rect x="230" y="282" width="10" height="10" fill="#111"/>
+    <rect x="933" y="315" width="102" height="122" fill="#233a55"/>
+    <rect x="951" y="260" width="66" height="60" fill="#8e5d43"/>
+    <rect x="942" y="242" width="84" height="39" fill="#17151d"/>
+    <rect x="959" y="282" width="10" height="10" fill="#111"/>
+    <rect x="998" y="282" width="10" height="10" fill="#111"/>
+    <rect x="248" y="398" width="104" height="18" fill="#d5a642"/>
+    <rect x="848" y="398" width="104" height="18" fill="#d5a642"/>
+    <rect x="170" y="521" width="860" height="12" fill="#19121a"/>
+    <rect x="202" y="548" width="796" height="8" fill="#d5a642"/>
+  </g>
+
+  <g text-anchor="middle" font-family="'PingFang HK','Noto Sans TC','Microsoft JhengHei',sans-serif">
+    <text x="600" y="120" fill="#f5df9a" font-size="86" font-weight="900" letter-spacing="8">判讀法庭</text>
+    <text x="600" y="163" fill="#d7a93f" font-size="27" font-weight="800" letter-spacing="10">PIXEL COURT</text>
+    <rect x="398" y="190" width="404" height="4" fill="#d7a93f"/>
+    <text x="600" y="246" fill="#fff6dc" font-size="34" font-weight="700">每個故事都有兩面。</text>
+    <text x="600" y="585" fill="#fff0c4" font-size="25" font-weight="700" letter-spacing="2">閱讀雙方陳詞 · 找出證據 · 作出裁決</text>
+  </g>
+</svg>
