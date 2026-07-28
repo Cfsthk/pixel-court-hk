@@ -4,14 +4,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   caseLibrary,
   countCaseCharacters,
+  idealJudgments,
   type CourtCase,
 } from "./case-library";
 
 type Screen =
   | "login"
   | "title"
-  | "generation"
-  | "approval"
   | "intro"
   | "reading"
   | "questions"
@@ -35,6 +34,7 @@ type StudentProfile = {
 
 type StudentProgress = {
   sessions: number;
+  totalXp: number;
   independentCorrect: number;
   totalQuestions: number;
   cuesUsed: number;
@@ -100,6 +100,7 @@ const initialMastery: Record<Construct, number> = {
 
 const emptyProgress: StudentProgress = {
   sessions: 0,
+  totalXp: 0,
   independentCorrect: 0,
   totalQuestions: 0,
   cuesUsed: 0,
@@ -542,6 +543,7 @@ const findings = [
 ];
 
 const punishments = [
+  { id: "none", label: "無需處分", icon: "○" },
   { id: "warning", label: "正式警告", icon: "!" },
   { id: "compensation", label: "賠償店主", icon: "$" },
   { id: "fine", label: "罰款", icon: "¢" },
@@ -551,6 +553,32 @@ const punishments = [
 ];
 
 const supportOptions = ["食物援助轉介", "就業支援", "家庭社工跟進"];
+
+const punishmentSeverity: Record<string, number> = {
+  none: 0,
+  warning: 1,
+  compensation: 2,
+  fine: 3,
+  service: 3,
+  probation: 4,
+  custody: 5,
+};
+
+function findingDistance(selected: string, ideal: string) {
+  if (selected === ideal) return 0;
+  const adjacentPairs = [
+    ["guilty", "shared"],
+    ["shared", "insufficient"],
+    ["insufficient", "not-guilty"],
+  ];
+  return adjacentPairs.some(
+    ([left, right]) =>
+      (selected === left && ideal === right) ||
+      (selected === right && ideal === left),
+  )
+    ? 1
+    : 2;
+}
 
 function selectNextQuestion(
   used: string[],
@@ -654,7 +682,7 @@ function CharacterSprite({
   size = "normal",
 }: {
   character: Character;
-  pose?: "idle" | "talk" | "enter" | "react";
+  pose?: "idle" | "talk" | "enter" | "react" | "sad" | "cry" | "celebrate";
   size?: "small" | "normal" | "large";
 }) {
   return (
@@ -675,6 +703,12 @@ function CharacterSprite({
         <i className="eye left" />
         <i className="eye right" />
         <i className="mouth" />
+        {pose === "cry" && (
+          <>
+            <i className="tear left" />
+            <i className="tear right" />
+          </>
+        )}
         {character.accessory === "glasses" && <i className="glasses" />}
         {character.accessory === "earring" && <i className="earring" />}
       </div>
@@ -699,9 +733,16 @@ function CharacterSprite({
 function Courtroom({
   activeSide,
   screen,
+  verdictReaction,
 }: {
   activeSide: Side;
   screen: Screen;
+  verdictReaction:
+    | "none"
+    | "defence-loses"
+    | "prosecution-loses"
+    | "both-sad"
+    | "uncertain";
 }) {
   const activeTalk =
     screen === "reading"
@@ -749,21 +790,59 @@ function Courtroom({
       <div className="court-side prosecution-side">
         <CharacterSprite
           character={characters[1]}
-          pose={screen === "intro" ? "enter" : "idle"}
+          pose={
+            screen === "intro"
+              ? "enter"
+              : verdictReaction === "prosecution-loses" ||
+                  verdictReaction === "both-sad"
+                ? "sad"
+                : verdictReaction === "defence-loses"
+                  ? "celebrate"
+                  : "idle"
+          }
         />
         <CharacterSprite
           character={characters[3]}
-          pose={activeTalk === "shopkeeper" ? "talk" : "idle"}
+          pose={
+            verdictReaction === "prosecution-loses"
+              ? "cry"
+              : verdictReaction === "both-sad"
+                ? "sad"
+                : verdictReaction === "defence-loses"
+                  ? "celebrate"
+                  : activeTalk === "shopkeeper"
+                    ? "talk"
+                    : "idle"
+          }
         />
       </div>
       <div className="court-side defence-side">
         <CharacterSprite
           character={characters[2]}
-          pose={screen === "intro" ? "enter" : "idle"}
+          pose={
+            screen === "intro"
+              ? "enter"
+              : verdictReaction === "defence-loses" ||
+                  verdictReaction === "both-sad"
+                ? "sad"
+                : verdictReaction === "prosecution-loses"
+                  ? "celebrate"
+                  : "idle"
+          }
         />
         <CharacterSprite
           character={characters[4]}
-          pose={activeTalk === "father" ? "talk" : "idle"}
+          pose={
+            verdictReaction === "defence-loses"
+              ? "cry"
+              : verdictReaction === "both-sad"
+                ? "sad"
+                : verdictReaction === "prosecution-loses"
+                  ? "celebrate"
+                  : activeTalk === "father"
+                    ? "talk"
+                    : "idle"
+          }
         />
       </div>
       <div className="clerk-stand">
@@ -807,7 +886,6 @@ export function PixelCourt() {
   const [slpHelp, setSlpHelp] = useState(0);
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
-  const [generationStep, setGenerationStep] = useState(0);
   const [mastery, setMastery] =
     useState<Record<Construct, number>>(initialMastery);
   const [usedQuestions, setUsedQuestions] = useState<string[]>([]);
@@ -827,7 +905,6 @@ export function PixelCourt() {
   const [supports, setSupports] = useState<string[]>([]);
   const [judgment, setJudgment] = useState("");
   const [rewardOpen, setRewardOpen] = useState(false);
-  const [slpApproved, setSlpApproved] = useState(false);
   const readerRef = useRef<HTMLDivElement | null>(null);
   const currentCase =
     caseLibrary.find((courtCase) => courtCase.id === activeCaseId) ??
@@ -859,17 +936,52 @@ export function PixelCourt() {
   const independentCorrect = records.filter(
     (record) => record.correct && record.cueLevel === 0,
   ).length;
-
-  useEffect(() => {
-    if (screen !== "generation") return;
-    const timers = [
-      window.setTimeout(() => setGenerationStep(1), 600),
-      window.setTimeout(() => setGenerationStep(2), 1250),
-      window.setTimeout(() => setGenerationStep(3), 1900),
-      window.setTimeout(() => setScreen("approval"), 2650),
-    ];
-    return () => timers.forEach(window.clearTimeout);
-  }, [screen]);
+  const idealJudgment = idealJudgments[currentCase.id];
+  const selectedSeverity = punishmentSeverity[punishment] ?? 0;
+  const severityDelta = selectedSeverity - idealJudgment.severity;
+  const judgmentCloseness = finding && punishment
+    ? Math.max(
+        0,
+        100 -
+          findingDistance(finding, idealJudgment.finding) * 25 -
+          Math.abs(severityDelta) * 15,
+      )
+    : 0;
+  const judgmentXp = Math.round((judgmentCloseness / 100) * 400);
+  const questionXp =
+    independentCorrect * 120 +
+    records.filter((record) => record.correct && record.cueLevel > 0).length *
+      60 +
+    records.filter((record) => !record.correct).length * 20;
+  const totalXp = questionXp + judgmentXp;
+  const verdictReaction =
+    screen !== "result"
+      ? "none"
+      : finding === "guilty"
+        ? "defence-loses"
+        : finding === "not-guilty"
+          ? "prosecution-loses"
+          : finding === "shared"
+            ? "both-sad"
+            : "uncertain";
+  const selectedFindingLabel =
+    findings.find((item) => item.id === finding)?.label ?? "未選擇";
+  const selectedPunishmentLabel =
+    punishments.find((item) => item.id === punishment)?.label ?? "未選擇";
+  const idealFindingLabel =
+    findings.find((item) => item.id === idealJudgment.finding)?.label ??
+    idealJudgment.finding;
+  const idealPunishmentLabel =
+    punishments.find((item) => item.id === idealJudgment.punishment)?.label ??
+    idealJudgment.punishment;
+  const judgmentDirection =
+    severityDelta >= 1
+      ? "harsh"
+      : severityDelta <= -1
+        ? "lenient"
+        : judgmentCloseness >= 85
+          ? "balanced"
+          : "different";
 
   useEffect(() => {
     if (screen === "questions" && !currentQuestion && records.length < 5) {
@@ -930,6 +1042,7 @@ export function PixelCourt() {
         const parsed = JSON.parse(stored) as Partial<StudentProgress>;
         progress = {
           sessions: Number(parsed.sessions) || 0,
+          totalXp: Number(parsed.totalXp) || 0,
           independentCorrect: Number(parsed.independentCorrect) || 0,
           totalQuestions: Number(parsed.totalQuestions) || 0,
           cuesUsed: Number(parsed.cuesUsed) || 0,
@@ -990,7 +1103,6 @@ export function PixelCourt() {
     setSupports([]);
     setJudgment("");
     setRewardOpen(false);
-    setSlpApproved(false);
     setInspectorOpen(false);
   }
 
@@ -1117,12 +1229,17 @@ export function PixelCourt() {
       slpHelp,
       caseId: currentCase.id,
       student: studentProfile,
+      idealJudgment,
+      judgmentCloseness,
+      judgmentXp,
+      totalXp,
       completedAt: new Date().toISOString(),
     };
     localStorage.setItem("pixel-court-last-case", JSON.stringify(result));
     if (studentProfile) {
       const nextProgress: StudentProgress = {
         sessions: studentProgress.sessions + 1,
+        totalXp: studentProgress.totalXp + totalXp,
         independentCorrect:
           studentProgress.independentCorrect + independentCorrect,
         totalQuestions: studentProgress.totalQuestions + records.length,
@@ -1143,12 +1260,16 @@ export function PixelCourt() {
       setStudentProgress(nextProgress);
     }
     setScreen("result");
-    window.setTimeout(() => setRewardOpen(true), 950);
+    window.setTimeout(() => setRewardOpen(true), 2200);
   }
 
   return (
     <main className={`game-shell screen-${screen}`}>
-      <Courtroom activeSide={activeSide} screen={screen} />
+      <Courtroom
+        activeSide={activeSide}
+        screen={screen}
+        verdictReaction={verdictReaction}
+      />
 
       <header className="game-hud">
         <button
@@ -1192,7 +1313,7 @@ export function PixelCourt() {
               <div>
                 <small>JUDGE RANK</small>
                 <strong>
-                  {(1280 + studentProgress.independentCorrect * 120).toLocaleString()}
+                  {(1280 + studentProgress.totalXp).toLocaleString()}
                 </strong>
               </div>
             </div>
@@ -1311,9 +1432,8 @@ export function PixelCourt() {
               <button
                 className="pixel-button gold"
                 onClick={() => {
-                  playTone();
-                  setGenerationStep(0);
-                  setScreen("generation");
+                  playTone("gavel");
+                  setScreen("intro");
                 }}
               >
                 <span>▶</span> 接受新案件
@@ -1346,113 +1466,6 @@ export function PixelCourt() {
                 ? `P.${studentProfile.grade} ${studentProfile.className}班 ${studentProfile.classNumber}號`
                 : "NEW JUDGE"}
             </div>
-          </div>
-        </section>
-      )}
-
-      {screen === "generation" && (
-        <section className="generation-screen game-panel">
-          <div className="case-loader">
-            <div className="pixel-folder">
-              <span>{currentCase.caseNumber}</span>
-              <i />
-            </div>
-            <p className="pixel-kicker">CASE ENGINE // BUILDING FILE</p>
-            <h2>正在整理本案資料</h2>
-            <div className="generation-log">
-              <span className={generationStep >= 0 ? "done" : ""}>
-                {generationStep >= 0 ? "✓" : "·"} 建立案件事實表
-              </span>
-              <span className={generationStep >= 1 ? "done" : ""}>
-                {generationStep >= 1 ? "✓" : "·"} 撰寫雙方陳詞
-              </span>
-              <span className={generationStep >= 2 ? "done" : ""}>
-                {generationStep >= 2 ? "✓" : "·"} 準備閱讀挑戰
-              </span>
-              <span className={generationStep >= 3 ? "done" : ""}>
-                {generationStep >= 3 ? "✓" : "·"} 執行安全檢查
-              </span>
-            </div>
-            <div className="loader-track">
-              <i style={{ width: `${25 + generationStep * 25}%` }} />
-            </div>
-          </div>
-        </section>
-      )}
-
-      {screen === "approval" && (
-        <section className="approval-screen game-panel">
-          <div className="approval-header">
-            <div>
-              <p className="pixel-kicker">PRIVATE SLP GATE</p>
-              <h2>案件等待批准</h2>
-            </div>
-            <span className="approval-status">CHECKS PASSED</span>
-          </div>
-          <div className="approval-grid">
-            <div className="case-file-summary">
-              <span className="file-number">
-                CASE {currentCase.caseNumber}
-              </span>
-              <h3>{currentCase.title}</h3>
-              <p>{currentCase.summary}</p>
-              <dl>
-                <div>
-                  <dt>年級</dt>
-                  <dd>P.{currentCase.grade} 建議</dd>
-                </div>
-                <div>
-                  <dt>字數</dt>
-                  <dd>約 {caseWordCount} 字</dd>
-                </div>
-                <div>
-                  <dt>情節</dt>
-                  <dd>{currentCase.episodes} 個 · {currentCase.complexity}</dd>
-                </div>
-                <div>
-                  <dt>EDB 焦點</dt>
-                  <dd>{currentCase.edbFocus}</dd>
-                </div>
-              </dl>
-            </div>
-            <div className="approval-checks">
-              {[
-                ["繁體中文", "通過"],
-                ["雙方事實一致性", "通過"],
-                ["答案可由文章找到", "通過"],
-                ["年齡內容安全", "通過"],
-                ["處理方式比例", "需 SLP 判斷"],
-              ].map(([label, status]) => (
-                <div key={label}>
-                  <span>{label}</span>
-                  <strong className={status === "通過" ? "pass" : "review"}>
-                    {status}
-                  </strong>
-                </div>
-              ))}
-              <p>原型個案已預先建立；正式版本會在此顯示即時 AI 內容。</p>
-            </div>
-          </div>
-          <div className="approval-actions">
-            <button
-              className="pixel-button dark"
-              onClick={() => {
-                setGenerationStep(0);
-                setScreen("generation");
-              }}
-            >
-              重新生成
-            </button>
-            <button
-              className="pixel-button gold"
-              onClick={() => {
-                setSlpApproved(true);
-                setScreen("intro");
-                playTone("gavel");
-              }}
-            >
-              SLP 批准開庭 <span>→</span>
-            </button>
           </div>
         </section>
       )}
@@ -1872,6 +1885,11 @@ export function PixelCourt() {
 
       {screen === "result" && (
         <section className="result-stage">
+          <div className="gavel-impact" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+          </div>
           <div className="verdict-stamp">
             <span>CASE {currentCase.caseNumber}</span>
             <strong>案件結案</strong>
@@ -1898,9 +1916,38 @@ export function PixelCourt() {
                 <span>字詞朗讀</span>
               </div>
               <div>
-                <strong>+{independentCorrect * 120 + (5 - independentCorrect) * 40}</strong>
+                <strong>+{totalXp}</strong>
                 <span>JUDGE XP</span>
               </div>
+            </div>
+            <div className={`judgment-comparison ${judgmentDirection}`}>
+              <div className="judgment-comparison-heading">
+                <div>
+                  <span>AI 參考裁決 · 原型規則</span>
+                  <strong>
+                    {judgmentDirection === "harsh"
+                      ? "你的處理較嚴厲"
+                      : judgmentDirection === "lenient"
+                        ? "你的處理較寬鬆"
+                        : judgmentDirection === "balanced"
+                          ? "裁決尺度非常接近"
+                          : "裁決方向有所不同"}
+                  </strong>
+                </div>
+                <b>+{judgmentXp} XP</b>
+              </div>
+              <div className="closeness-track">
+                <i style={{ width: `${judgmentCloseness}%` }} />
+              </div>
+              <div className="judgment-pair">
+                <span>
+                  你的裁決：{selectedFindingLabel} · {selectedPunishmentLabel}
+                </span>
+                <span>
+                  參考裁決：{idealFindingLabel} · {idealPunishmentLabel}
+                </span>
+              </div>
+              <p>{idealJudgment.reasoning}</p>
             </div>
             <div className="result-actions">
               <button className="pixel-button gold" onClick={resetGame}>
@@ -1975,10 +2022,6 @@ export function PixelCourt() {
             </strong>
             <p>分級閱讀路徑 · SLP 在場</p>
           </div>
-        </div>
-        <div className="approval-mini">
-          <span>案件批准</span>
-          <strong>{slpApproved ? "✓ 已批准" : "尚未批准"}</strong>
         </div>
         <div className="mastery-console">
           <h3>閱讀狀態估計</h3>

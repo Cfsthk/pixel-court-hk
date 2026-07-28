@@ -17,7 +17,7 @@ export async function generateMetadata(): Promise<Metadata> {
     metadataBase: new URL(baseUrl),
     title: "判讀法庭：像素裁決｜Pixel Court",
     description:
-      "閱讀雙方陳詞，找出證據，作出裁決。供小三或以上學生使用的像素法庭閱讀遊戲原型。",
+      "閱讀雙方陳詞，找出證據，作出裁決。供小一至小六學生使用的像素法庭閱讀遊戲原型。",
     icons: {
       icon: "/favicon.svg",
       shortcut: "/favicon.svg",

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import ts from "typescript";
 
 async function render() {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
@@ -60,6 +61,9 @@ test("ships the complete playable loop", async () => {
   assert.match(app, /pixel-court-last-case/);
   assert.match(app, /shuffleOptions/);
   assert.match(app, /studentProgressKey/);
+  assert.match(app, /judgmentCloseness/);
+  assert.match(app, /verdictReaction/);
+  assert.doesNotMatch(app, /screen === "approval"/);
   assert.match(app, /disabled=\{!finding \|\| !punishment \|\| !judgment\.trim\(\)\}/);
   assert.doesNotMatch(app, /judgment\.trim\(\)\.length < 12/);
   assert.match(app, /SLP/);
@@ -69,6 +73,8 @@ test("ships the complete playable loop", async () => {
   assert.match(cases, /grade: 1/);
   assert.match(cases, /grade: 6/);
   assert.match(cases, /edbFocus/);
+  assert.match(cases, /idealJudgments/);
+  assert.match(cases, /challengingOptions/);
   assert.match(css, /@keyframes spriteTalk/);
   assert.match(css, /image-rendering:\s*pixelated/);
   assert.doesNotMatch(
@@ -77,4 +83,33 @@ test("ships the complete playable loop", async () => {
   );
   assert.match(layout, /判讀法庭：像素裁決/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
+});
+
+test("enforces the upper-primary case-length ladder", async () => {
+  const source = await readFile(
+    new URL("../app/case-library.ts", import.meta.url),
+    "utf8",
+  );
+  const compiled = ts.transpileModule(source, {
+    compilerOptions: {
+      module: ts.ModuleKind.ESNext,
+      target: ts.ScriptTarget.ES2022,
+    },
+  }).outputText;
+  const moduleUrl = `data:text/javascript;base64,${Buffer.from(compiled).toString("base64")}`;
+  const { caseLibrary, countCaseCharacters, idealJudgments } = await import(
+    moduleUrl
+  );
+  const minimums = { 3: 300, 4: 400, 5: 500, 6: 600 };
+
+  assert.equal(caseLibrary.length, 20);
+  assert.equal(Object.keys(idealJudgments).length, 20);
+  for (const courtCase of caseLibrary.filter((item) => item.grade >= 3)) {
+    assert.ok(
+      countCaseCharacters(courtCase) >= minimums[courtCase.grade],
+      `${courtCase.id} is below its P.${courtCase.grade} minimum`,
+    );
+    assert.equal(courtCase.questions.length, 5);
+    assert.ok(courtCase.questions.every((question) => question.options.length === 4));
+  }
 });
