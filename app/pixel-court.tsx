@@ -1,8 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  caseLibrary,
+  countCaseCharacters,
+  type CourtCase,
+} from "./case-library";
 
 type Screen =
+  | "login"
   | "title"
   | "generation"
   | "approval"
@@ -20,6 +26,21 @@ type Construct =
   | "integration"
   | "evidence";
 type CueLevel = 0 | 1 | 2;
+
+type StudentProfile = {
+  grade: 1 | 2 | 3 | 4 | 5 | 6;
+  className: "信" | "望" | "愛" | "智";
+  classNumber: number;
+};
+
+type StudentProgress = {
+  sessions: number;
+  independentCorrect: number;
+  totalQuestions: number;
+  cuesUsed: number;
+  completedCaseIds: string[];
+  mastery: Record<Construct, number>;
+};
 
 type Character = {
   id: string;
@@ -53,6 +74,11 @@ type QuestionRecord = {
   reviews: number;
 };
 
+type PresentedOptions = {
+  options: string[];
+  answer: number;
+};
+
 const constructMeta: Record<
   Construct,
   { label: string; short: string; color: string }
@@ -71,6 +97,52 @@ const initialMastery: Record<Construct, number> = {
   integration: 0.43,
   evidence: 0.46,
 };
+
+const emptyProgress: StudentProgress = {
+  sessions: 0,
+  independentCorrect: 0,
+  totalQuestions: 0,
+  cuesUsed: 0,
+  completedCaseIds: [],
+  mastery: initialMastery,
+};
+
+function studentProgressKey(profile: StudentProfile) {
+  return `pixel-court-progress-${profile.grade}-${profile.className}-${profile.classNumber}`;
+}
+
+function selectRecommendedCase(
+  profile: StudentProfile,
+  progress: StudentProgress,
+): CourtCase {
+  const accuracy =
+    progress.totalQuestions > 0
+      ? progress.independentCorrect / progress.totalQuestions
+      : 0.55;
+  const cueRate =
+    progress.totalQuestions > 0 ? progress.cuesUsed / progress.totalQuestions : 0.4;
+  const adjustment =
+    progress.sessions === 0
+      ? 0
+      : accuracy >= 0.8 && cueRate <= 0.35
+        ? 1
+        : accuracy < 0.45 || cueRate >= 0.75
+          ? -1
+          : 0;
+  const targetGrade = Math.max(1, Math.min(6, profile.grade + adjustment));
+  const available = caseLibrary.filter(
+    (courtCase) => !progress.completedCaseIds.includes(courtCase.id),
+  );
+  const candidates = available.length ? available : caseLibrary;
+  return [...candidates].sort(
+    (a, b) =>
+      Math.abs(a.difficulty - targetGrade) -
+        Math.abs(b.difficulty - targetGrade) ||
+      Math.abs(a.grade - targetGrade) - Math.abs(b.grade - targetGrade) ||
+      a.difficulty - b.difficulty ||
+      a.caseNumber.localeCompare(b.caseNumber),
+  )[0];
+}
 
 const characters: Character[] = [
   {
@@ -339,27 +411,6 @@ const characters: Character[] = [
   },
 ];
 
-const passages: Record<Side, { label: string; speaker: string; paragraphs: string[] }> = {
-  prosecution: {
-    label: "控方陳詞",
-    speaker: "麵包店店主　陳女士",
-    paragraphs: [
-      "上星期五晚上七時五十分，距離關門只有十分鐘。我到儲物室整理貨物，回到店面時，看見最後一條全麥麵包不見了。收銀機沒有這項交易，櫃枱上也沒有現金。",
-      "我查看店內的閉路電視畫面，看見王志明拿起麵包，向空置的收銀處望了幾次，然後把麵包放進袋裏離開。他沒有走到儲物室找我，也沒有按櫃枱上的服務鈴。",
-      "第二天早上，他回到店外等我開門。他承認自己沒有付款，並表示願意補償。雖然他主動回來，但店舖不能容許任何人未經同意取走貨品。如果每個人都用自己的困難作理由，小店便很難經營下去。",
-    ],
-  },
-  defence: {
-    label: "辯方陳詞",
-    speaker: "被告　王志明",
-    paragraphs: [
-      "上星期五，我的銀包在回家途中遺失了。兩個孩子整天只吃過一個小飯盒，回到家後一直說肚子餓。我曾向附近兩間店舖求助，但都沒有成功，所以才走進陳女士的麵包店。",
-      "我在櫃枱前等了一會兒，也叫了兩聲，但沒有人回答。我沒有留意到服務鈴。我知道不付款便取走麵包是不對的，但當時我感到迫不得已。我在一張紙上寫下姓名和電話號碼，壓在收據盒下面，希望第二天領到工資後回來付款。",
-      "翌日早上，我比店主更早到達店外，並帶了足夠的錢。我沒有打算逃避責任。陳女士後來在收據盒旁找到那張紙，只是紙張被風吹到櫃枱角落。我願意付款、道歉，也願意為店舖做一些工作作為補償。",
-    ],
-  },
-};
-
 const questionBank: Question[] = [
   {
     id: "f1",
@@ -505,6 +556,7 @@ function selectNextQuestion(
   used: string[],
   records: QuestionRecord[],
   mastery: Record<Construct, number>,
+  questionPool: Question[] = questionBank,
 ) {
   const counts = records.reduce<Record<Construct, number>>(
     (summary, record) => {
@@ -513,7 +565,7 @@ function selectNextQuestion(
     },
     { factual: 0, inferential: 0, semantic: 0, integration: 0, evidence: 0 },
   );
-  const available = questionBank.filter(
+  const available = questionPool.filter(
     (question) =>
       !used.includes(question.id) && counts[question.construct] < 2,
   );
@@ -527,6 +579,27 @@ function selectNextQuestion(
   return (
     available.find((question) => question.construct === target) ?? available[0]
   );
+}
+
+function shuffleOptions(
+  question: Question,
+  previousOptions: string[] = question.options,
+): PresentedOptions {
+  const indexed = question.options.map((option, index) => ({ option, index }));
+  for (let index = indexed.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [indexed[index], indexed[swapIndex]] = [indexed[swapIndex], indexed[index]];
+  }
+  if (
+    indexed.length > 1 &&
+    indexed.every((item, index) => item.option === previousOptions[index])
+  ) {
+    indexed.push(indexed.shift()!);
+  }
+  return {
+    options: indexed.map((item) => item.option),
+    answer: indexed.findIndex((item) => item.index === question.answer),
+  };
 }
 
 function speak(text: string, onEnd?: () => void) {
@@ -716,7 +789,15 @@ function Courtroom({
 }
 
 export function PixelCourt() {
-  const [screen, setScreen] = useState<Screen>("title");
+  const [screen, setScreen] = useState<Screen>("login");
+  const [studentProfile, setStudentProfile] = useState<StudentProfile | null>(null);
+  const [studentProgress, setStudentProgress] =
+    useState<StudentProgress>(emptyProgress);
+  const [loginGrade, setLoginGrade] = useState<StudentProfile["grade"]>(3);
+  const [loginClass, setLoginClass] =
+    useState<StudentProfile["className"]>("信");
+  const [loginNumber, setLoginNumber] = useState("");
+  const [activeCaseId, setActiveCaseId] = useState("c07");
   const [activeSide, setActiveSide] = useState<Side>("prosecution");
   const [openedSides, setOpenedSides] = useState<Side[]>([]);
   const [selectedText, setSelectedText] = useState("");
@@ -732,6 +813,8 @@ export function PixelCourt() {
   const [usedQuestions, setUsedQuestions] = useState<string[]>([]);
   const [records, setRecords] = useState<QuestionRecord[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
+  const [presentedOptions, setPresentedOptions] = useState<string[]>([]);
+  const [presentedAnswer, setPresentedAnswer] = useState<number | null>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [cueLevel, setCueLevel] = useState<CueLevel>(0);
   const [questionFeedback, setQuestionFeedback] = useState<
@@ -746,6 +829,11 @@ export function PixelCourt() {
   const [rewardOpen, setRewardOpen] = useState(false);
   const [slpApproved, setSlpApproved] = useState(false);
   const readerRef = useRef<HTMLDivElement | null>(null);
+  const currentCase =
+    caseLibrary.find((courtCase) => courtCase.id === activeCaseId) ??
+    caseLibrary[0];
+  const casePassages = currentCase.passages;
+  const caseWordCount = countCaseCharacters(currentCase);
 
   const currentProgress =
     screen === "reading"
@@ -786,9 +874,17 @@ export function PixelCourt() {
   useEffect(() => {
     if (screen === "questions" && !currentQuestion && records.length < 5) {
       const timer = window.setTimeout(() => {
-        const next = selectNextQuestion(usedQuestions, records, mastery);
+        const next = selectNextQuestion(
+          usedQuestions,
+          records,
+          mastery,
+          currentCase.questions,
+        );
         if (next) {
+          const presentation = shuffleOptions(next);
           setCurrentQuestion(next);
+          setPresentedOptions(presentation.options);
+          setPresentedAnswer(presentation.answer);
           setUsedQuestions((used) => [...used, next.id]);
           setQuestionStartedAt(Date.now());
         }
@@ -798,21 +894,93 @@ export function PixelCourt() {
       const timer = window.setTimeout(() => setScreen("verdict"), 0);
       return () => window.clearTimeout(timer);
     }
-  }, [screen, currentQuestion, records, usedQuestions, mastery]);
+  }, [
+    screen,
+    currentQuestion,
+    records,
+    usedQuestions,
+    mastery,
+    currentCase.questions,
+  ]);
+
+  function enterDigit(digit: string) {
+    setLoginNumber((value) => {
+      if (value.length >= 2) return value;
+      if (!value && digit === "0") return value;
+      return `${value}${digit}`;
+    });
+  }
+
+  function logInStudent() {
+    const classNumber = Number(loginNumber);
+    if (!Number.isInteger(classNumber) || classNumber < 1 || classNumber > 99)
+      return;
+    const profile: StudentProfile = {
+      grade: loginGrade,
+      className: loginClass,
+      classNumber,
+    };
+    let progress: StudentProgress = {
+      ...emptyProgress,
+      mastery: { ...initialMastery },
+    };
+    try {
+      const stored = localStorage.getItem(studentProgressKey(profile));
+      if (stored) {
+        const parsed = JSON.parse(stored) as Partial<StudentProgress>;
+        progress = {
+          sessions: Number(parsed.sessions) || 0,
+          independentCorrect: Number(parsed.independentCorrect) || 0,
+          totalQuestions: Number(parsed.totalQuestions) || 0,
+          cuesUsed: Number(parsed.cuesUsed) || 0,
+          completedCaseIds: Array.isArray(parsed.completedCaseIds)
+            ? parsed.completedCaseIds
+            : [],
+          mastery: parsed.mastery
+            ? { ...initialMastery, ...parsed.mastery }
+            : { ...initialMastery },
+        };
+      }
+    } catch {
+      progress = { ...emptyProgress, mastery: { ...initialMastery } };
+    }
+    const recommended = selectRecommendedCase(profile, progress);
+    setStudentProfile(profile);
+    setStudentProgress(progress);
+    setMastery(progress.mastery);
+    setActiveCaseId(recommended.id);
+    setScreen("title");
+    playTone("success");
+  }
+
+  function logOutStudent() {
+    window.speechSynthesis?.cancel();
+    setStudentProfile(null);
+    setInspectorOpen(false);
+    setLoginNumber("");
+    setScreen("login");
+  }
 
   function resetGame() {
     window.speechSynthesis?.cancel();
-    setScreen("title");
+    if (studentProfile) {
+      setActiveCaseId(
+        selectRecommendedCase(studentProfile, studentProgress).id,
+      );
+    }
+    setScreen(studentProfile ? "title" : "login");
     setActiveSide("prosecution");
     setOpenedSides([]);
     setSelectedText("");
     setTtsCount(0);
     setPassageSwitches(0);
     setSlpHelp(0);
-    setMastery(initialMastery);
+    setMastery(studentProfile ? studentProgress.mastery : initialMastery);
     setUsedQuestions([]);
     setRecords([]);
     setCurrentQuestion(null);
+    setPresentedOptions([]);
+    setPresentedAnswer(null);
     setSelectedAnswer(null);
     setCueLevel(0);
     setQuestionFeedback("idle");
@@ -856,11 +1024,12 @@ export function PixelCourt() {
   function submitQuestion() {
     if (
       selectedAnswer === null ||
+      presentedAnswer === null ||
       !currentQuestion ||
       questionFeedback !== "idle"
     )
       return;
-    const correct = selectedAnswer === currentQuestion.answer;
+    const correct = selectedAnswer === presentedAnswer;
     if (correct) {
       const gain = cueLevel === 0 ? 0.08 : cueLevel === 1 ? 0.04 : 0.018;
       setMastery((state) => ({
@@ -892,6 +1061,11 @@ export function PixelCourt() {
   }
 
   function showNextCue() {
+    if (currentQuestion) {
+      const presentation = shuffleOptions(currentQuestion, presentedOptions);
+      setPresentedOptions(presentation.options);
+      setPresentedAnswer(presentation.answer);
+    }
     setCueLevel((level) => Math.min(2, level + 1) as CueLevel);
     setSelectedAnswer(null);
     setQuestionFeedback("idle");
@@ -912,6 +1086,8 @@ export function PixelCourt() {
       },
     ]);
     setCurrentQuestion(null);
+    setPresentedOptions([]);
+    setPresentedAnswer(null);
     setSelectedAnswer(null);
     setCueLevel(0);
     setQuestionFeedback("idle");
@@ -928,7 +1104,7 @@ export function PixelCourt() {
   }
 
   function stampVerdict() {
-    if (!finding || !punishment || judgment.trim().length < 12) return;
+    if (!finding || !punishment || !judgment.trim()) return;
     playTone("gavel");
     const result = {
       finding,
@@ -939,9 +1115,33 @@ export function PixelCourt() {
       ttsCount,
       passageSwitches,
       slpHelp,
+      caseId: currentCase.id,
+      student: studentProfile,
       completedAt: new Date().toISOString(),
     };
     localStorage.setItem("pixel-court-last-case", JSON.stringify(result));
+    if (studentProfile) {
+      const nextProgress: StudentProgress = {
+        sessions: studentProgress.sessions + 1,
+        independentCorrect:
+          studentProgress.independentCorrect + independentCorrect,
+        totalQuestions: studentProgress.totalQuestions + records.length,
+        cuesUsed:
+          studentProgress.cuesUsed +
+          records.filter((record) => record.cueLevel > 0).length,
+        completedCaseIds: studentProgress.completedCaseIds.includes(
+          currentCase.id,
+        )
+          ? studentProgress.completedCaseIds
+          : [...studentProgress.completedCaseIds, currentCase.id],
+        mastery,
+      };
+      localStorage.setItem(
+        studentProgressKey(studentProfile),
+        JSON.stringify(nextProgress),
+      );
+      setStudentProgress(nextProgress);
+    }
     setScreen("result");
     window.setTimeout(() => setRewardOpen(true), 950);
   }
@@ -965,8 +1165,8 @@ export function PixelCourt() {
 
         {currentProgress > 0 && (
           <div className="case-hud">
-            <span>CASE 001</span>
-            <strong>最後一條麵包</strong>
+            <span>CASE {currentCase.caseNumber}</span>
+            <strong>{currentCase.title}</strong>
             <div className="case-pips">
               {[1, 2, 3, 4, 5].map((step) => (
                 <i key={step} className={step <= currentProgress ? "on" : ""} />
@@ -975,19 +1175,122 @@ export function PixelCourt() {
           </div>
         )}
 
-        <div className="hud-actions">
-          <div className="judge-rank">
-            <span>✦</span>
-            <div>
-              <small>JUDGE RANK</small>
-              <strong>1,280</strong>
+        {studentProfile && (
+          <div className="hud-actions">
+            <button className="student-hud" onClick={logOutStudent}>
+              <span>
+                {studentProfile.grade}
+                {studentProfile.className}
+              </span>
+              <div>
+                <small>STUDENT</small>
+                <strong>{studentProfile.classNumber}號 · 登出</strong>
+              </div>
+            </button>
+            <div className="judge-rank">
+              <span>✦</span>
+              <div>
+                <small>JUDGE RANK</small>
+                <strong>
+                  {(1280 + studentProgress.independentCorrect * 120).toLocaleString()}
+                </strong>
+              </div>
             </div>
+            <button onClick={() => setInspectorOpen(true)} className="slp-key">
+              SLP
+            </button>
           </div>
-          <button onClick={() => setInspectorOpen(true)} className="slp-key">
-            SLP
-          </button>
-        </div>
+        )}
       </header>
+
+      {screen === "login" && (
+        <section className="login-stage">
+          <div className="login-docket">
+            <p className="pixel-kicker">COURT SESSION ACCESS</p>
+            <h1>法官報到</h1>
+            <p className="login-intro">
+              輸入班別資料，法庭會按年級及過往案件表現安排難度。
+            </p>
+
+            <fieldset>
+              <legend>01 · 年級</legend>
+              <div className="grade-selector">
+                {([1, 2, 3, 4, 5, 6] as const).map((grade) => (
+                  <button
+                    key={grade}
+                    className={loginGrade === grade ? "selected" : ""}
+                    onClick={() => setLoginGrade(grade)}
+                  >
+                    P.{grade}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend>02 · 班別</legend>
+              <div className="class-selector">
+                {(["信", "望", "愛", "智"] as const).map((className) => (
+                  <button
+                    key={className}
+                    className={loginClass === className ? "selected" : ""}
+                    onClick={() => setLoginClass(className)}
+                  >
+                    {className}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend>03 · 班號</legend>
+              <div className="number-entry">
+                <output>{loginNumber || "—"}</output>
+                <div className="number-pad" aria-label="班號數字鍵盤">
+                  {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map(
+                    (digit) => (
+                      <button key={digit} onClick={() => enterDigit(digit)}>
+                        {digit}
+                      </button>
+                    ),
+                  )}
+                  <button
+                    aria-label="清除班號"
+                    onClick={() => setLoginNumber("")}
+                  >
+                    C
+                  </button>
+                  <button onClick={() => enterDigit("0")}>0</button>
+                  <button
+                    aria-label="刪除最後一個數字"
+                    onClick={() =>
+                      setLoginNumber((value) => value.slice(0, -1))
+                    }
+                  >
+                    ←
+                  </button>
+                </div>
+              </div>
+            </fieldset>
+
+            <button
+              className="pixel-button gold login-button"
+              disabled={!loginNumber}
+              onClick={logInStudent}
+            >
+              進入法庭 <span>→</span>
+            </button>
+            <p className="login-privacy">
+              原型只在本機儲存代號及表現；尚未連接學校雲端資料庫。
+            </p>
+          </div>
+          <div className="login-seal" aria-hidden="true">
+            <span>判</span>
+            <strong>STUDENT SESSION</strong>
+            <i>20 CASES READY</i>
+          </div>
+        </section>
+      )}
 
       {screen === "title" && (
         <section className="title-screen">
@@ -1022,13 +1325,27 @@ export function PixelCourt() {
                 角色名冊
               </button>
             </div>
+            <div className="recommended-case-strip">
+              <span>推薦難度 · P.{currentCase.difficulty}</span>
+              <strong>
+                CASE {currentCase.caseNumber}　{currentCase.title}
+              </strong>
+              <small>
+                {currentCase.episodes} 個情節 · 約 {caseWordCount} 字 ·{" "}
+                {currentCase.complexity}
+              </small>
+            </div>
             <p className="save-note">自動儲存 · 獨立案件 · 約 10 分鐘</p>
           </div>
           <div className="title-judge">
             <div className="judge-silhouette">
               <span>?</span>
             </div>
-            <div className="new-badge">NEW JUDGE</div>
+            <div className="new-badge">
+              {studentProfile
+                ? `P.${studentProfile.grade} ${studentProfile.className}班 ${studentProfile.classNumber}號`
+                : "NEW JUDGE"}
+            </div>
           </div>
         </section>
       )}
@@ -1037,7 +1354,7 @@ export function PixelCourt() {
         <section className="generation-screen game-panel">
           <div className="case-loader">
             <div className="pixel-folder">
-              <span>001</span>
+              <span>{currentCase.caseNumber}</span>
               <i />
             </div>
             <p className="pixel-kicker">CASE ENGINE // BUILDING FILE</p>
@@ -1074,27 +1391,27 @@ export function PixelCourt() {
           </div>
           <div className="approval-grid">
             <div className="case-file-summary">
-              <span className="file-number">CASE 001</span>
-              <h3>最後一條麵包</h3>
-              <p>
-                一名父親在關門前取走麵包但沒有即時付款；店主與被告對他是否曾求助的說法不同。
-              </p>
+              <span className="file-number">
+                CASE {currentCase.caseNumber}
+              </span>
+              <h3>{currentCase.title}</h3>
+              <p>{currentCase.summary}</p>
               <dl>
                 <div>
                   <dt>年級</dt>
-                  <dd>小三或以上</dd>
+                  <dd>P.{currentCase.grade} 建議</dd>
                 </div>
                 <div>
                   <dt>字數</dt>
-                  <dd>控方 183 · 辯方 208</dd>
+                  <dd>約 {caseWordCount} 字</dd>
                 </div>
                 <div>
-                  <dt>焦點</dt>
-                  <dd>推論 · 雙文整合 · 證據</dd>
+                  <dt>情節</dt>
+                  <dd>{currentCase.episodes} 個 · {currentCase.complexity}</dd>
                 </div>
                 <div>
-                  <dt>敏感內容</dt>
-                  <dd>貧窮 · 飢餓（非圖像化）</dd>
+                  <dt>EDB 焦點</dt>
+                  <dd>{currentCase.edbFocus}</dd>
                 </div>
               </dl>
             </div>
@@ -1117,7 +1434,13 @@ export function PixelCourt() {
             </div>
           </div>
           <div className="approval-actions">
-            <button className="pixel-button dark" onClick={() => setScreen("generation")}>
+            <button
+              className="pixel-button dark"
+              onClick={() => {
+                setGenerationStep(0);
+                setScreen("generation");
+              }}
+            >
               重新生成
             </button>
             <button
@@ -1142,7 +1465,9 @@ export function PixelCourt() {
             </div>
             <div>
               <p className="pixel-kicker">書記官 阿琦</p>
-              <h2>全體肅立！案件 001 現在開庭。</h2>
+              <h2>
+                全體肅立！案件 {currentCase.caseNumber} 現在開庭。
+              </h2>
               <p>
                 法官閣下，請閱讀雙方陳詞。五項證據挑戰之後，由你作出裁決。
               </p>
@@ -1164,11 +1489,7 @@ export function PixelCourt() {
         <section className="reader-stage">
           <div className="argument-banner">
             <span>{activeSide === "prosecution" ? "控方發言" : "辯方發言"}</span>
-            <strong>
-              {activeSide === "prosecution"
-                ? "「店舖不能容許未付款取貨。」"
-                : "「我沒有打算逃避責任。」"}
-            </strong>
+            <strong>CASE {currentCase.caseNumber} · {currentCase.title}</strong>
           </div>
           <div className="reader-window">
             <div className="reader-tabs">
@@ -1179,7 +1500,7 @@ export function PixelCourt() {
                   onClick={() => openPassage(side)}
                 >
                   <span>{side === "prosecution" ? "A" : "B"}</span>
-                  {passages[side].label}
+                  {casePassages[side].label}
                   {openedSides.includes(side) && <i>✓</i>}
                 </button>
               ))}
@@ -1192,12 +1513,12 @@ export function PixelCourt() {
             >
               <div className="passage-heading">
                 <div>
-                  <small>{passages[activeSide].label}</small>
-                  <h2>{passages[activeSide].speaker}</h2>
+                  <small>{casePassages[activeSide].label}</small>
+                  <h2>{casePassages[activeSide].speaker}</h2>
                 </div>
                 <span>PAGE {activeSide === "prosecution" ? "1" : "2"} / 2</span>
               </div>
-              {passages[activeSide].paragraphs.map((paragraph, index) => (
+              {casePassages[activeSide].paragraphs.map((paragraph, index) => (
                 <p key={paragraph}>
                   <span>{index + 1}</span>
                   {paragraph}
@@ -1293,17 +1614,18 @@ export function PixelCourt() {
                 <CharacterSprite character={characters[0]} size="small" pose="talk" />
                 <div>
                   <strong>{cueLevel === 1 ? "書記官提示" : "證據位置提示"}</strong>
-                  <p>
-                    {cueLevel === 1
-                      ? currentQuestion.generalCue
-                      : currentQuestion.specificCue}
-                  </p>
-                </div>
+                      <p>
+                        {cueLevel === 1
+                          ? currentQuestion.generalCue
+                          : currentQuestion.specificCue}
+                      </p>
+                      <small>選項已重新排列，請再根據記憶作答。</small>
+                    </div>
               </div>
             )}
 
             <div className="challenge-options">
-              {currentQuestion.options.map((option, index) => (
+                  {presentedOptions.map((option, index) => (
                 <button
                   key={option}
                   className={[
@@ -1312,7 +1634,7 @@ export function PixelCourt() {
                       ? "correct"
                       : "",
                     questionFeedback === "incorrect" &&
-                    index === currentQuestion.answer
+                        index === presentedAnswer
                       ? "answer"
                       : "",
                   ]
@@ -1363,7 +1685,12 @@ export function PixelCourt() {
               <div className="challenge-feedback incorrect">
                 <div>
                   <strong>這項證據暫不成立</strong>
-                  <p>正確答案：{currentQuestion.options[currentQuestion.answer]}</p>
+                      <p>
+                        正確答案：
+                        {presentedAnswer === null
+                          ? ""
+                          : presentedOptions[presentedAnswer]}
+                      </p>
                 </div>
                 <span>→</span>
               </div>
@@ -1383,9 +1710,9 @@ export function PixelCourt() {
                 <div className="review-columns">
                   {(["prosecution", "defence"] as Side[]).map((side) => (
                     <article key={side}>
-                      <h3>{passages[side].label}</h3>
-                      <small>{passages[side].speaker}</small>
-                      {passages[side].paragraphs.map((paragraph) => (
+                        <h3>{casePassages[side].label}</h3>
+                        <small>{casePassages[side].speaker}</small>
+                        {casePassages[side].paragraphs.map((paragraph) => (
                         <p key={paragraph}>{paragraph}</p>
                       ))}
                     </article>
@@ -1503,7 +1830,7 @@ export function PixelCourt() {
 
           <button
             className="stamp-button"
-            disabled={!finding || !punishment || judgment.trim().length < 12}
+            disabled={!finding || !punishment || !judgment.trim()}
             onClick={stampVerdict}
           >
             <span>⚒</span>
@@ -1523,9 +1850,9 @@ export function PixelCourt() {
                 <div className="review-columns">
                   {(["prosecution", "defence"] as Side[]).map((side) => (
                     <article key={side}>
-                      <h3>{passages[side].label}</h3>
-                      <small>{passages[side].speaker}</small>
-                      {passages[side].paragraphs.map((paragraph) => (
+                        <h3>{casePassages[side].label}</h3>
+                        <small>{casePassages[side].speaker}</small>
+                        {casePassages[side].paragraphs.map((paragraph) => (
                         <p key={paragraph}>{paragraph}</p>
                       ))}
                     </article>
@@ -1546,7 +1873,7 @@ export function PixelCourt() {
       {screen === "result" && (
         <section className="result-stage">
           <div className="verdict-stamp">
-            <span>CASE 001</span>
+            <span>CASE {currentCase.caseNumber}</span>
             <strong>案件結案</strong>
             <small>JUDGMENT FILED</small>
           </div>
@@ -1639,10 +1966,14 @@ export function PixelCourt() {
           <button onClick={() => setInspectorOpen(false)}>×</button>
         </div>
         <div className="student-record">
-          <span>朗</span>
+          <span>{studentProfile?.grade ?? "—"}</span>
           <div>
-            <strong>陳樂朗 · 小四</strong>
-            <p>閱讀支援路徑 · SLP 在場</p>
+            <strong>
+              {studentProfile
+                ? `P.${studentProfile.grade}${studentProfile.className}班 · ${studentProfile.classNumber}號`
+                : "未登入學生"}
+            </strong>
+            <p>分級閱讀路徑 · SLP 在場</p>
           </div>
         </div>
         <div className="approval-mini">
@@ -1666,6 +1997,36 @@ export function PixelCourt() {
             </div>
           ))}
           <p>原型採用啟發式更新，並非標準分數。</p>
+        </div>
+        <div className="behavior-console prior-performance">
+          <h3>過往表現摘要</h3>
+          <dl>
+            <div>
+              <dt>已完成案件</dt>
+              <dd>{studentProgress.completedCaseIds.length}/20</dd>
+            </div>
+            <div>
+              <dt>完成節數</dt>
+              <dd>{studentProgress.sessions}</dd>
+            </div>
+            <div>
+              <dt>獨立答對率</dt>
+              <dd>
+                {studentProgress.totalQuestions
+                  ? Math.round(
+                      (studentProgress.independentCorrect /
+                        studentProgress.totalQuestions) *
+                        100,
+                    )
+                  : "—"}
+                {studentProgress.totalQuestions ? "%" : ""}
+              </dd>
+            </div>
+            <div>
+              <dt>目前案件級別</dt>
+              <dd>P.{currentCase.difficulty}</dd>
+            </div>
+          </dl>
         </div>
         <div className="behavior-console">
           <h3>可觀察行為</h3>

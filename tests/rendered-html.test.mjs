@@ -31,14 +31,16 @@ test("server-renders Pixel Court", async () => {
   const html = await response.text();
   assert.match(html, /判讀法庭/);
   assert.match(html, /PIXEL COURT/);
-  assert.match(html, /新案件/);
-  assert.match(html, /角色名冊/);
+  assert.match(html, /法官報到/);
+  assert.match(html, /班號數字鍵盤/);
+  assert.match(html, /進入法庭/);
   assert.doesNotMatch(html, /Your site is taking shape|react-loading-skeleton/);
 });
 
 test("ships the complete playable loop", async () => {
-  const [app, css, layout, packageJson] = await Promise.all([
+  const [app, cases, css, layout, packageJson] = await Promise.all([
     readFile(new URL("../app/pixel-court.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/case-library.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
@@ -56,11 +58,23 @@ test("ships the complete playable loop", async () => {
 
   assert.match(app, /speechSynthesis/);
   assert.match(app, /pixel-court-last-case/);
+  assert.match(app, /shuffleOptions/);
+  assert.match(app, /studentProgressKey/);
+  assert.match(app, /disabled=\{!finding \|\| !punishment \|\| !judgment\.trim\(\)\}/);
+  assert.doesNotMatch(app, /judgment\.trim\(\)\.length < 12/);
   assert.match(app, /SLP/);
   assert.match(app, /records\.length >= 5/);
   assert.match(app, /重看雙方陳詞/);
+  assert.equal((cases.match(/caseNumber: "\d{3}"/g) ?? []).length, 20);
+  assert.match(cases, /grade: 1/);
+  assert.match(cases, /grade: 6/);
+  assert.match(cases, /edbFocus/);
   assert.match(css, /@keyframes spriteTalk/);
   assert.match(css, /image-rendering:\s*pixelated/);
+  assert.doesNotMatch(
+    css.match(/\.passage-paper\s*\{[\s\S]*?\}/)?.[0] ?? "",
+    /repeating-linear-gradient/,
+  );
   assert.match(layout, /判讀法庭：像素裁決/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
 });
