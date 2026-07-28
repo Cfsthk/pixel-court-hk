@@ -30,7 +30,7 @@ type StudentProfile = {
   classNumber: number;
 };
 
-type JudgeGender = "boy" | "girl" | "neutral";
+type JudgeGender = "boy" | "girl";
 type JudgeLookId = "amber" | "rose" | "walnut" | "midnight";
 type JudgeOutfitId = "classic" | "crimson" | "night" | "gold";
 
@@ -49,6 +49,8 @@ type StudentProgress = {
   completedCaseIds: string[];
   mastery: Record<Construct, number>;
   judgeAvatar: JudgeAvatar;
+  performanceScore: number;
+  lastPerformanceScore: number | null;
 };
 
 type Character = {
@@ -82,6 +84,18 @@ type QuestionRecord = {
   cueLevel: CueLevel | 3;
   latencyMs: number;
   reviews: number;
+  optionChanges: number;
+};
+
+type PerformanceSummary = {
+  accuracy: number;
+  averageTimeSec: number;
+  timeScore: number;
+  helpScore: number;
+  revisitScore: number;
+  changeScore: number;
+  composite: number;
+  difficultyShift: -1 | 0 | 1;
 };
 
 type PresentedOptions = {
@@ -109,7 +123,7 @@ const initialMastery: Record<Construct, number> = {
 };
 
 const defaultJudgeAvatar: JudgeAvatar = {
-  gender: "neutral",
+  gender: "boy",
   look: "amber",
   outfit: "classic",
 };
@@ -123,6 +137,8 @@ const emptyProgress: StudentProgress = {
   completedCaseIds: [],
   mastery: initialMastery,
   judgeAvatar: defaultJudgeAvatar,
+  performanceScore: 55,
+  lastPerformanceScore: null,
 };
 
 const judgeLevelThresholds = [0, 700, 1700, 3000, 4600, 6500] as const;
@@ -134,7 +150,6 @@ const judgeGenderOptions: {
 }[] = [
   { id: "boy", label: "男" },
   { id: "girl", label: "女" },
-  { id: "neutral", label: "不限" },
 ];
 
 const judgeLooks: {
@@ -142,35 +157,30 @@ const judgeLooks: {
   label: string;
   skin: string;
   hair: string;
-  hairStyle: Character["hairStyle"];
 }[] = [
   {
     id: "amber",
     label: "琥珀",
     skin: "#d99b72",
     hair: "#30231f",
-    hairStyle: "short",
   },
   {
     id: "rose",
     label: "玫瑰",
     skin: "#efb28c",
     hair: "#59362f",
-    hairStyle: "long",
   },
   {
     id: "walnut",
     label: "胡桃",
     skin: "#b96f4d",
     hair: "#201d21",
-    hairStyle: "crop",
   },
   {
     id: "midnight",
     label: "夜墨",
     skin: "#82513e",
     hair: "#16171b",
-    hairStyle: "wave",
   },
 ];
 
@@ -237,7 +247,7 @@ function makeJudgeCharacter(avatar: JudgeAvatar): Character {
     role: "主審法官",
     skin: look.skin,
     hair: look.hair,
-    hairStyle: look.hairStyle,
+    hairStyle: avatar.gender === "girl" ? "long" : "short",
     outfit: outfit.outfit,
     accent: outfit.accent,
     gender: avatar.gender,
@@ -250,13 +260,65 @@ function normalizeJudgeAvatar(value: unknown): JudgeAvatar {
   return {
     gender: judgeGenderOptions.some((option) => option.id === candidate.gender)
       ? candidate.gender!
-      : defaultJudgeAvatar.gender,
+      : "boy",
     look: judgeLooks.some((option) => option.id === candidate.look)
       ? candidate.look!
       : defaultJudgeAvatar.look,
     outfit: judgeOutfits.some((option) => option.id === candidate.outfit)
       ? candidate.outfit!
       : defaultJudgeAvatar.outfit,
+  };
+}
+
+function clampUnit(value: number) {
+  return Math.max(0, Math.min(1, value));
+}
+
+function calculatePerformance(
+  records: QuestionRecord[],
+  passageReviews: number,
+): PerformanceSummary {
+  const count = Math.max(records.length, 1);
+  const accuracy =
+    records.length > 0
+      ? records.filter((record) => record.correct).length / records.length
+      : 0;
+  const averageTimeSec =
+    records.length > 0
+      ? records.reduce((total, record) => total + record.latencyMs, 0) /
+        records.length /
+        1000
+      : 90;
+  const timeScore = clampUnit(1 - Math.max(0, averageTimeSec - 25) / 65);
+  const helpBurden =
+    records.reduce(
+      (total, record) => total + Math.min(record.cueLevel, 3) / 3,
+      0,
+    ) / count;
+  const helpScore = 1 - clampUnit(helpBurden);
+  const revisitScore = 1 - clampUnit(passageReviews / 4);
+  const optionChanges =
+    records.reduce((total, record) => total + record.optionChanges, 0) / count;
+  const changeScore = 1 - clampUnit(optionChanges / 3);
+  const composite = Math.round(
+    100 *
+      (accuracy * 0.45 +
+        timeScore * 0.15 +
+        helpScore * 0.2 +
+        revisitScore * 0.1 +
+        changeScore * 0.1),
+  );
+  const difficultyShift: -1 | 0 | 1 =
+    composite >= 80 ? 1 : composite <= 50 ? -1 : 0;
+  return {
+    accuracy,
+    averageTimeSec: Math.round(averageTimeSec),
+    timeScore,
+    helpScore,
+    revisitScore,
+    changeScore,
+    composite,
+    difficultyShift,
   };
 }
 
@@ -268,18 +330,14 @@ function selectRecommendedCase(
   profile: StudentProfile,
   progress: StudentProgress,
 ): CourtCase {
-  const accuracy =
-    progress.totalQuestions > 0
-      ? progress.independentCorrect / progress.totalQuestions
-      : 0.55;
-  const cueRate =
-    progress.totalQuestions > 0 ? progress.cuesUsed / progress.totalQuestions : 0.4;
+  const effectivePerformance =
+    progress.lastPerformanceScore ?? progress.performanceScore;
   const adjustment =
     progress.sessions === 0
       ? 0
-      : accuracy >= 0.8 && cueRate <= 0.35
+      : effectivePerformance >= 80
         ? 1
-        : accuracy < 0.45 || cueRate >= 0.75
+        : effectivePerformance <= 50
           ? -1
           : 0;
   const judgeLevel = getJudgeLevel(progress.totalXp);
@@ -712,8 +770,6 @@ const punishments = [
   { id: "custody", label: "監禁", icon: "▥" },
 ];
 
-const supportOptions = ["食物援助轉介", "就業支援", "家庭社工跟進"];
-
 const punishmentSeverity: Record<string, number> = {
   none: 0,
   warning: 1,
@@ -847,7 +903,7 @@ function CharacterSprite({
 }) {
   return (
     <div
-      className={`pixel-person ${pose} ${size} gender-${character.gender ?? "neutral"}`}
+      className={`pixel-person ${pose} ${size} gender-${character.gender ?? "boy"}`}
       style={
         {
           "--skin": character.skin,
@@ -1052,6 +1108,7 @@ export function PixelCourt() {
   const [ttsCount, setTtsCount] = useState(0);
   const [ttsPlaying, setTtsPlaying] = useState(false);
   const [passageSwitches, setPassageSwitches] = useState(0);
+  const [passageReviews, setPassageReviews] = useState(0);
   const [slpHelp, setSlpHelp] = useState(0);
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
@@ -1069,9 +1126,9 @@ export function PixelCourt() {
   >("idle");
   const [questionStartedAt, setQuestionStartedAt] = useState(0);
   const [questionReviews, setQuestionReviews] = useState(0);
+  const [optionChanges, setOptionChanges] = useState(0);
   const [finding, setFinding] = useState("");
   const [punishment, setPunishment] = useState("");
-  const [supports, setSupports] = useState<string[]>([]);
   const [judgment, setJudgment] = useState("");
   const [rewardOpen, setRewardOpen] = useState(false);
   const [judgeAvatar, setJudgeAvatar] =
@@ -1150,6 +1207,13 @@ export function PixelCourt() {
       60 +
     records.filter((record) => !record.correct).length * 20;
   const totalXp = questionXp + judgmentXp;
+  const performance = calculatePerformance(records, passageReviews);
+  const performanceDirectionLabel =
+    performance.difficultyShift > 0
+      ? "下一宗提高難度"
+      : performance.difficultyShift < 0
+        ? "下一宗降低難度"
+        : "下一宗維持級別";
   const verdictReaction =
     screen !== "result"
       ? "none"
@@ -1256,6 +1320,14 @@ export function PixelCourt() {
             ? { ...initialMastery, ...parsed.mastery }
             : { ...initialMastery },
           judgeAvatar: normalizeJudgeAvatar(parsed.judgeAvatar),
+          performanceScore:
+            typeof parsed.performanceScore === "number"
+              ? Math.max(0, Math.min(100, parsed.performanceScore))
+              : 55,
+          lastPerformanceScore:
+            typeof parsed.lastPerformanceScore === "number"
+              ? Math.max(0, Math.min(100, parsed.lastPerformanceScore))
+              : null,
         };
       }
     } catch {
@@ -1273,6 +1345,7 @@ export function PixelCourt() {
 
   function logOutStudent() {
     window.speechSynthesis?.cancel();
+    resetGame();
     setStudentProfile(null);
     setInspectorOpen(false);
     setLoginNumber("");
@@ -1313,6 +1386,7 @@ export function PixelCourt() {
     setSelectedText("");
     setTtsCount(0);
     setPassageSwitches(0);
+    setPassageReviews(0);
     setSlpHelp(0);
     setMastery(studentProfile ? studentProgress.mastery : initialMastery);
     setUsedQuestions([]);
@@ -1324,9 +1398,9 @@ export function PixelCourt() {
     setCueLevel(0);
     setQuestionFeedback("idle");
     setQuestionStartedAt(0);
+    setOptionChanges(0);
     setFinding("");
     setPunishment("");
-    setSupports([]);
     setJudgment("");
     setRewardOpen(false);
     setLevelUpLevel(null);
@@ -1408,7 +1482,6 @@ export function PixelCourt() {
     setCueLevel((level) => Math.min(2, level + 1) as CueLevel);
     setSelectedAnswer(null);
     setQuestionFeedback("idle");
-    setQuestionStartedAt(Date.now());
   }
 
   function finishQuestion(correct: boolean, finalCue: CueLevel | 3) {
@@ -1422,6 +1495,7 @@ export function PixelCourt() {
         cueLevel: finalCue,
         latencyMs: Date.now() - questionStartedAt,
         reviews: questionReviews,
+        optionChanges,
       },
     ]);
     setCurrentQuestion(null);
@@ -1431,15 +1505,8 @@ export function PixelCourt() {
     setCueLevel(0);
     setQuestionFeedback("idle");
     setQuestionReviews(0);
+    setOptionChanges(0);
     setReviewOpen(false);
-  }
-
-  function toggleSupport(option: string) {
-    setSupports((items) =>
-      items.includes(option)
-        ? items.filter((item) => item !== option)
-        : [...items, option],
-    );
   }
 
   function stampVerdict() {
@@ -1448,11 +1515,11 @@ export function PixelCourt() {
     const result = {
       finding,
       punishment,
-      supports,
       judgment,
       records,
       ttsCount,
       passageSwitches,
+      passageReviews,
       slpHelp,
       caseId: currentCase.id,
       student: studentProfile,
@@ -1460,6 +1527,7 @@ export function PixelCourt() {
       judgmentCloseness,
       judgmentXp,
       totalXp,
+      performance,
       judgeLevelBefore: judgeLevel,
       completedAt: new Date().toISOString(),
     };
@@ -1482,6 +1550,14 @@ export function PixelCourt() {
           : [...studentProgress.completedCaseIds, currentCase.id],
         mastery,
         judgeAvatar,
+        performanceScore:
+          studentProgress.sessions === 0
+            ? performance.composite
+            : Math.round(
+                studentProgress.performanceScore * 0.7 +
+                  performance.composite * 0.3,
+              ),
+        lastPerformanceScore: performance.composite,
       };
       const nextJudgeLevel = getJudgeLevel(nextProgress.totalXp);
       earnedLevel = nextJudgeLevel > judgeLevel ? nextJudgeLevel : null;
@@ -1940,6 +2016,7 @@ export function PixelCourt() {
               onClick={() => {
                 setReviewOpen(true);
                 setQuestionReviews((count) => count + 1);
+                setPassageReviews((count) => count + 1);
               }}
             >
               ◫ 重看雙方陳詞
@@ -1992,6 +2069,9 @@ export function PixelCourt() {
                   onClick={() => {
                     if (questionFeedback !== "idle") return;
                     playTone();
+                    if (selectedAnswer !== null && selectedAnswer !== index) {
+                      setOptionChanges((count) => count + 1);
+                    }
                     setSelectedAnswer(index);
                   }}
                 >
@@ -2090,6 +2170,7 @@ export function PixelCourt() {
               onClick={() => {
                 setReviewOpen(true);
                 setQuestionReviews((count) => count + 1);
+                setPassageReviews((count) => count + 1);
               }}
             >
               ◫ 最後重看陳詞
@@ -2137,19 +2218,6 @@ export function PixelCourt() {
                     >
                       <span>{item.icon}</span>
                       {item.label}
-                    </button>
-                  ))}
-                </div>
-                <div className="support-row">
-                  <span>可同時加入支援措施：</span>
-                  {supportOptions.map((option) => (
-                    <button
-                      key={option}
-                      className={supports.includes(option) ? "selected" : ""}
-                      onClick={() => toggleSupport(option)}
-                    >
-                      {supports.includes(option) ? "✓ " : "+ "}
-                      {option}
                     </button>
                   ))}
                 </div>
@@ -2254,6 +2322,21 @@ export function PixelCourt() {
               <div>
                 <strong>+{totalXp}</strong>
                 <span>JUDGE XP</span>
+              </div>
+            </div>
+            <div className="performance-breakdown">
+              <div className="performance-heading">
+                <div>
+                  <span>本案表現分數</span>
+                  <strong>{performance.composite}/100 · {performanceDirectionLabel}</strong>
+                </div>
+                <b>{Math.round(performance.accuracy * 100)}% 答對</b>
+              </div>
+              <div className="performance-metrics">
+                <span>平均 {performance.averageTimeSec} 秒／題</span>
+                <span>提示依賴 {Math.round((1 - performance.helpScore) * 100)}%</span>
+                <span>重看 {passageReviews} 次</span>
+                <span>改選 {records.reduce((total, record) => total + record.optionChanges, 0)} 次</span>
               </div>
             </div>
             <div className={`judgment-comparison ${judgmentDirection}`}>
@@ -2392,6 +2475,18 @@ export function PixelCourt() {
                   : "—"}
                 {studentProgress.totalQuestions ? "%" : ""}
               </dd>
+            </div>
+            <div>
+              <dt>上一宗表現分數</dt>
+              <dd>
+                {studentProgress.lastPerformanceScore === null
+                  ? "—"
+                  : `${studentProgress.lastPerformanceScore}/100`}
+              </dd>
+            </div>
+            <div>
+              <dt>本案表現分數</dt>
+              <dd>{screen === "result" ? `${performance.composite}/100` : "進行中"}</dd>
             </div>
             <div>
               <dt>目前案件級別</dt>

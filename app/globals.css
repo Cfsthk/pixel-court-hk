@@ -784,18 +784,6 @@ textarea:focus-visible {
   width: calc(52px * var(--scale));
 }
 
-.pixel-person.gender-boy .pixel-body {
-  clip-path: polygon(5% 0, 95% 0, 100% 100%, 0 100%);
-}
-
-.pixel-person.gender-girl .pixel-body {
-  clip-path: polygon(13% 0, 87% 0, 100% 100%, 0 100%);
-}
-
-.pixel-person.gender-neutral .pixel-body {
-  clip-path: polygon(8% 0, 92% 0, 96% 100%, 4% 100%);
-}
-
 .lapel {
   border-style: solid;
   height: 0;
@@ -2727,6 +2715,56 @@ textarea:focus-visible {
   color: #8b837e;
   font-size: 9px;
   margin-top: 4px;
+}
+
+.performance-breakdown {
+  background: rgba(27, 28, 36, 0.88);
+  border-left: 4px solid var(--green);
+  margin-top: 15px;
+  padding: 11px 13px;
+}
+
+.performance-heading {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.performance-heading span,
+.performance-heading strong {
+  display: block;
+}
+
+.performance-heading span {
+  color: #918b86;
+  font-family: "Courier New", monospace;
+  font-size: 8px;
+}
+
+.performance-heading strong {
+  color: var(--cream);
+  font-size: 12px;
+  margin-top: 3px;
+}
+
+.performance-heading b {
+  color: var(--green);
+  font-family: "Courier New", monospace;
+  font-size: 14px;
+}
+
+.performance-metrics {
+  border-top: 1px solid #3b3b43;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 16px;
+  margin-top: 9px;
+  padding-top: 8px;
+}
+
+.performance-metrics span {
+  color: #9b9590;
+  font-size: 9px;
 }
 
 .judgment-comparison {
