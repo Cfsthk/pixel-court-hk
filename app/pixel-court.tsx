@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   caseLibrary,
-  countCaseCharacters,
   idealJudgments,
   type CourtCase,
 } from "./case-library";
@@ -15,8 +14,7 @@ type Screen =
   | "reading"
   | "questions"
   | "verdict"
-  | "result"
-  | "roster";
+  | "result";
 type Side = "prosecution" | "defence";
 type Construct =
   | "factual"
@@ -32,6 +30,16 @@ type StudentProfile = {
   classNumber: number;
 };
 
+type JudgeGender = "boy" | "girl" | "neutral";
+type JudgeLookId = "amber" | "rose" | "walnut" | "midnight";
+type JudgeOutfitId = "classic" | "crimson" | "night" | "gold";
+
+type JudgeAvatar = {
+  gender: JudgeGender;
+  look: JudgeLookId;
+  outfit: JudgeOutfitId;
+};
+
 type StudentProgress = {
   sessions: number;
   totalXp: number;
@@ -40,6 +48,7 @@ type StudentProgress = {
   cuesUsed: number;
   completedCaseIds: string[];
   mastery: Record<Construct, number>;
+  judgeAvatar: JudgeAvatar;
 };
 
 type Character = {
@@ -52,6 +61,7 @@ type Character = {
   outfit: string;
   accent: string;
   accessory?: "glasses" | "hat" | "earring" | "cane";
+  gender?: JudgeGender;
 };
 
 type Question = {
@@ -98,6 +108,12 @@ const initialMastery: Record<Construct, number> = {
   evidence: 0.46,
 };
 
+const defaultJudgeAvatar: JudgeAvatar = {
+  gender: "neutral",
+  look: "amber",
+  outfit: "classic",
+};
+
 const emptyProgress: StudentProgress = {
   sessions: 0,
   totalXp: 0,
@@ -106,7 +122,143 @@ const emptyProgress: StudentProgress = {
   cuesUsed: 0,
   completedCaseIds: [],
   mastery: initialMastery,
+  judgeAvatar: defaultJudgeAvatar,
 };
+
+const judgeLevelThresholds = [0, 700, 1700, 3000, 4600, 6500] as const;
+const judgeRankNames = ["見習法官", "助理法官", "巡迴法官", "高級法官", "首席法官", "傳奇法官"] as const;
+
+const judgeGenderOptions: {
+  id: JudgeGender;
+  label: string;
+}[] = [
+  { id: "boy", label: "男" },
+  { id: "girl", label: "女" },
+  { id: "neutral", label: "不限" },
+];
+
+const judgeLooks: {
+  id: JudgeLookId;
+  label: string;
+  skin: string;
+  hair: string;
+  hairStyle: Character["hairStyle"];
+}[] = [
+  {
+    id: "amber",
+    label: "琥珀",
+    skin: "#d99b72",
+    hair: "#30231f",
+    hairStyle: "short",
+  },
+  {
+    id: "rose",
+    label: "玫瑰",
+    skin: "#efb28c",
+    hair: "#59362f",
+    hairStyle: "long",
+  },
+  {
+    id: "walnut",
+    label: "胡桃",
+    skin: "#b96f4d",
+    hair: "#201d21",
+    hairStyle: "crop",
+  },
+  {
+    id: "midnight",
+    label: "夜墨",
+    skin: "#82513e",
+    hair: "#16171b",
+    hairStyle: "wave",
+  },
+];
+
+const judgeOutfits: {
+  id: JudgeOutfitId;
+  label: string;
+  outfit: string;
+  accent: string;
+  minLevel: number;
+}[] = [
+  {
+    id: "classic",
+    label: "經典黑袍",
+    outfit: "#202936",
+    accent: "#d9c9aa",
+    minLevel: 1,
+  },
+  {
+    id: "crimson",
+    label: "緋紅法袍",
+    outfit: "#652f3f",
+    accent: "#efc968",
+    minLevel: 1,
+  },
+  {
+    id: "night",
+    label: "夜色法袍",
+    outfit: "#263d62",
+    accent: "#8fd4dd",
+    minLevel: 2,
+  },
+  {
+    id: "gold",
+    label: "金徽法袍",
+    outfit: "#72572a",
+    accent: "#ffe39a",
+    minLevel: 4,
+  },
+];
+
+function getJudgeLevel(totalXp: number) {
+  return judgeLevelThresholds.reduce(
+    (level, threshold, index) => (totalXp >= threshold ? index + 1 : level),
+    1,
+  );
+}
+
+function getUnlockedDifficulty(
+  grade: StudentProfile["grade"],
+  judgeLevel: number,
+) {
+  return Math.min(6, grade + judgeLevel - 1);
+}
+
+function makeJudgeCharacter(avatar: JudgeAvatar): Character {
+  const look =
+    judgeLooks.find((option) => option.id === avatar.look) ?? judgeLooks[0];
+  const outfit =
+    judgeOutfits.find((option) => option.id === avatar.outfit) ??
+    judgeOutfits[0];
+  return {
+    id: "student-judge",
+    name: "學生法官",
+    role: "主審法官",
+    skin: look.skin,
+    hair: look.hair,
+    hairStyle: look.hairStyle,
+    outfit: outfit.outfit,
+    accent: outfit.accent,
+    gender: avatar.gender,
+  };
+}
+
+function normalizeJudgeAvatar(value: unknown): JudgeAvatar {
+  if (!value || typeof value !== "object") return { ...defaultJudgeAvatar };
+  const candidate = value as Partial<JudgeAvatar>;
+  return {
+    gender: judgeGenderOptions.some((option) => option.id === candidate.gender)
+      ? candidate.gender!
+      : defaultJudgeAvatar.gender,
+    look: judgeLooks.some((option) => option.id === candidate.look)
+      ? candidate.look!
+      : defaultJudgeAvatar.look,
+    outfit: judgeOutfits.some((option) => option.id === candidate.outfit)
+      ? candidate.outfit!
+      : defaultJudgeAvatar.outfit,
+  };
+}
 
 function studentProgressKey(profile: StudentProfile) {
   return `pixel-court-progress-${profile.grade}-${profile.className}-${profile.classNumber}`;
@@ -130,11 +282,19 @@ function selectRecommendedCase(
         : accuracy < 0.45 || cueRate >= 0.75
           ? -1
           : 0;
-  const targetGrade = Math.max(1, Math.min(6, profile.grade + adjustment));
-  const available = caseLibrary.filter(
+  const judgeLevel = getJudgeLevel(progress.totalXp);
+  const unlockedDifficulty = getUnlockedDifficulty(profile.grade, judgeLevel);
+  const targetGrade = Math.max(
+    1,
+    Math.min(unlockedDifficulty, profile.grade + adjustment),
+  );
+  const unlockedCases = caseLibrary.filter(
+    (courtCase) => courtCase.difficulty <= unlockedDifficulty,
+  );
+  const available = unlockedCases.filter(
     (courtCase) => !progress.completedCaseIds.includes(courtCase.id),
   );
-  const candidates = available.length ? available : caseLibrary;
+  const candidates = available.length ? available : unlockedCases;
   return [...candidates].sort(
     (a, b) =>
       Math.abs(a.difficulty - targetGrade) -
@@ -687,7 +847,7 @@ function CharacterSprite({
 }) {
   return (
     <div
-      className={`pixel-person ${pose} ${size}`}
+      className={`pixel-person ${pose} ${size} gender-${character.gender ?? "neutral"}`}
       style={
         {
           "--skin": character.skin,
@@ -734,6 +894,7 @@ function Courtroom({
   activeSide,
   screen,
   verdictReaction,
+  judgeCharacter,
 }: {
   activeSide: Side;
   screen: Screen;
@@ -743,6 +904,7 @@ function Courtroom({
     | "prosecution-loses"
     | "both-sad"
     | "uncertain";
+  judgeCharacter: Character;
 }) {
   const activeTalk =
     screen === "reading"
@@ -853,6 +1015,13 @@ function Courtroom({
         />
       </div>
       <div className="judge-platform">
+        <div className="player-judge">
+          <CharacterSprite
+            character={judgeCharacter}
+            pose={screen === "result" ? "celebrate" : "idle"}
+            size="small"
+          />
+        </div>
         <div className="judge-chair" />
         <div className="judge-bench">
           <div className="gavel">
@@ -905,12 +1074,39 @@ export function PixelCourt() {
   const [supports, setSupports] = useState<string[]>([]);
   const [judgment, setJudgment] = useState("");
   const [rewardOpen, setRewardOpen] = useState(false);
+  const [judgeAvatar, setJudgeAvatar] =
+    useState<JudgeAvatar>(defaultJudgeAvatar);
+  const [levelUpLevel, setLevelUpLevel] = useState<number | null>(null);
   const readerRef = useRef<HTMLDivElement | null>(null);
   const currentCase =
     caseLibrary.find((courtCase) => courtCase.id === activeCaseId) ??
     caseLibrary[0];
   const casePassages = currentCase.passages;
-  const caseWordCount = countCaseCharacters(currentCase);
+  const judgeLevel = getJudgeLevel(studentProgress.totalXp);
+  const judgeCharacter = useMemo(
+    () => makeJudgeCharacter(judgeAvatar),
+    [judgeAvatar],
+  );
+  const unlockedDifficulty = studentProfile
+    ? getUnlockedDifficulty(studentProfile.grade, judgeLevel)
+    : 1;
+  const levelStartXp = judgeLevelThresholds[judgeLevel - 1];
+  const nextLevelXp =
+    judgeLevel < judgeLevelThresholds.length
+      ? judgeLevelThresholds[judgeLevel]
+      : levelStartXp;
+  const levelProgress =
+    judgeLevel === judgeLevelThresholds.length
+      ? 100
+      : Math.max(
+          0,
+          Math.min(
+            100,
+            ((studentProgress.totalXp - levelStartXp) /
+              (nextLevelXp - levelStartXp)) *
+              100,
+          ),
+        );
 
   const currentProgress =
     screen === "reading"
@@ -982,6 +1178,13 @@ export function PixelCourt() {
         : judgmentCloseness >= 85
           ? "balanced"
           : "different";
+  const newlyUnlockedOutfit = levelUpLevel
+    ? judgeOutfits.find((option) => option.minLevel === levelUpLevel)
+    : undefined;
+  const levelUpCaseDifficulty =
+    levelUpLevel && studentProfile
+      ? getUnlockedDifficulty(studentProfile.grade, levelUpLevel)
+      : unlockedDifficulty;
 
   useEffect(() => {
     if (screen === "questions" && !currentQuestion && records.length < 5) {
@@ -1052,6 +1255,7 @@ export function PixelCourt() {
           mastery: parsed.mastery
             ? { ...initialMastery, ...parsed.mastery }
             : { ...initialMastery },
+          judgeAvatar: normalizeJudgeAvatar(parsed.judgeAvatar),
         };
       }
     } catch {
@@ -1061,6 +1265,7 @@ export function PixelCourt() {
     setStudentProfile(profile);
     setStudentProgress(progress);
     setMastery(progress.mastery);
+    setJudgeAvatar(progress.judgeAvatar);
     setActiveCaseId(recommended.id);
     setScreen("title");
     playTone("success");
@@ -1071,7 +1276,28 @@ export function PixelCourt() {
     setStudentProfile(null);
     setInspectorOpen(false);
     setLoginNumber("");
+    setJudgeAvatar(defaultJudgeAvatar);
     setScreen("login");
+  }
+
+  function updateJudgeAvatar(patch: Partial<JudgeAvatar>) {
+    const nextAvatar = normalizeJudgeAvatar({ ...judgeAvatar, ...patch });
+    const selectedOutfit =
+      judgeOutfits.find((option) => option.id === nextAvatar.outfit) ??
+      judgeOutfits[0];
+    if (selectedOutfit.minLevel > judgeLevel) return;
+    setJudgeAvatar(nextAvatar);
+    if (!studentProfile) return;
+    const nextProgress = {
+      ...studentProgress,
+      judgeAvatar: nextAvatar,
+    };
+    setStudentProgress(nextProgress);
+    localStorage.setItem(
+      studentProgressKey(studentProfile),
+      JSON.stringify(nextProgress),
+    );
+    playTone();
   }
 
   function resetGame() {
@@ -1103,6 +1329,7 @@ export function PixelCourt() {
     setSupports([]);
     setJudgment("");
     setRewardOpen(false);
+    setLevelUpLevel(null);
     setInspectorOpen(false);
   }
 
@@ -1233,9 +1460,11 @@ export function PixelCourt() {
       judgmentCloseness,
       judgmentXp,
       totalXp,
+      judgeLevelBefore: judgeLevel,
       completedAt: new Date().toISOString(),
     };
     localStorage.setItem("pixel-court-last-case", JSON.stringify(result));
+    let earnedLevel: number | null = null;
     if (studentProfile) {
       const nextProgress: StudentProgress = {
         sessions: studentProgress.sessions + 1,
@@ -1252,15 +1481,21 @@ export function PixelCourt() {
           ? studentProgress.completedCaseIds
           : [...studentProgress.completedCaseIds, currentCase.id],
         mastery,
+        judgeAvatar,
       };
+      const nextJudgeLevel = getJudgeLevel(nextProgress.totalXp);
+      earnedLevel = nextJudgeLevel > judgeLevel ? nextJudgeLevel : null;
       localStorage.setItem(
         studentProgressKey(studentProfile),
         JSON.stringify(nextProgress),
       );
       setStudentProgress(nextProgress);
     }
+    setLevelUpLevel(earnedLevel);
     setScreen("result");
-    window.setTimeout(() => setRewardOpen(true), 2200);
+    if (earnedLevel) {
+      window.setTimeout(() => setRewardOpen(true), 2200);
+    }
   }
 
   return (
@@ -1269,6 +1504,7 @@ export function PixelCourt() {
         activeSide={activeSide}
         screen={screen}
         verdictReaction={verdictReaction}
+        judgeCharacter={judgeCharacter}
       />
 
       <header className="game-hud">
@@ -1309,12 +1545,13 @@ export function PixelCourt() {
               </div>
             </button>
             <div className="judge-rank">
-              <span>✦</span>
+              <span>LV.{judgeLevel}</span>
               <div>
-                <small>JUDGE RANK</small>
-                <strong>
-                  {(1280 + studentProgress.totalXp).toLocaleString()}
-                </strong>
+                <small>{judgeRankNames[judgeLevel - 1]}</small>
+                <strong>{studentProgress.totalXp.toLocaleString()} XP</strong>
+                <i>
+                  <b style={{ width: `${levelProgress}%` }} />
+                </i>
               </div>
             </div>
             <button onClick={() => setInspectorOpen(true)} className="slp-key">
@@ -1416,21 +1653,26 @@ export function PixelCourt() {
       {screen === "title" && (
         <section className="title-screen">
           <div className="title-shade" />
-          <div className="title-content">
-            <p className="pixel-kicker">CITY COURT ARCHIVE // CASES ONLINE</p>
-            <h1>
-              判讀
-              <br />
-              <span>法庭</span>
-            </h1>
-            <div className="title-rule">
-              <i />
-              <p>每個故事都有兩面。證據會說出甚麼？</p>
-              <i />
-            </div>
-            <div className="title-actions">
+          <div className="judge-chambers">
+            <div className="title-content">
+              <p className="pixel-kicker">JUDGE CHAMBERS // CASE READY</p>
+              <h1>
+                法官
+                <br />
+                <span>更衣室</span>
+              </h1>
+              <p className="title-subtitle">
+                換好造型，帶着你的法官等級走進法庭。
+              </p>
+              <div className="next-case-ticket">
+                <span>NEXT CASE</span>
+                <strong>
+                  CASE {currentCase.caseNumber} · {currentCase.title}
+                </strong>
+                <p>{currentCase.summary}</p>
+              </div>
               <button
-                className="pixel-button gold"
+                className="pixel-button gold accept-case-button"
                 onClick={() => {
                   playTone("gavel");
                   setScreen("intro");
@@ -1438,33 +1680,127 @@ export function PixelCourt() {
               >
                 <span>▶</span> 接受新案件
               </button>
-              <button
-                className="pixel-button dark"
-                onClick={() => setScreen("roster")}
-              >
-                角色名冊
-              </button>
             </div>
-            <div className="recommended-case-strip">
-              <span>推薦難度 · P.{currentCase.difficulty}</span>
-              <strong>
-                CASE {currentCase.caseNumber}　{currentCase.title}
-              </strong>
-              <small>
-                {currentCase.episodes} 個情節 · 約 {caseWordCount} 字 ·{" "}
-                {currentCase.complexity}
-              </small>
-            </div>
-            <p className="save-note">自動儲存 · 獨立案件 · 約 10 分鐘</p>
-          </div>
-          <div className="title-judge">
-            <div className="judge-silhouette">
-              <span>?</span>
-            </div>
-            <div className="new-badge">
-              {studentProfile
-                ? `P.${studentProfile.grade} ${studentProfile.className}班 ${studentProfile.classNumber}號`
-                : "NEW JUDGE"}
+
+            <div className="avatar-customizer">
+              <div className="avatar-preview">
+                <div className="avatar-spotlight" />
+                <CharacterSprite
+                  character={judgeCharacter}
+                  size="large"
+                  pose="enter"
+                />
+                <div className="avatar-level-badge">
+                  <span>LV.{judgeLevel}</span>
+                  <strong>{judgeRankNames[judgeLevel - 1]}</strong>
+                </div>
+              </div>
+
+              <div className="level-panel">
+                <div className="level-panel-heading">
+                  <div>
+                    <span>JUDGE LEVEL</span>
+                    <strong>案件權限 P.{unlockedDifficulty}</strong>
+                  </div>
+                  <b>{studentProgress.totalXp.toLocaleString()} XP</b>
+                </div>
+                <div className="level-track">
+                  <i style={{ width: `${levelProgress}%` }} />
+                </div>
+                <p>
+                  {judgeLevel < judgeLevelThresholds.length
+                    ? `再取得 ${(nextLevelXp - studentProgress.totalXp).toLocaleString()} XP，可升級並開啟 ${
+                        unlockedDifficulty < 6
+                          ? `P.${unlockedDifficulty + 1} 案件`
+                          : "新法袍"
+                      }。`
+                    : "已達最高法官等級，所有案件均已開放。"}
+                </p>
+              </div>
+
+              <div className="avatar-controls">
+                <fieldset>
+                  <legend>性別</legend>
+                  <div className="gender-options">
+                    {judgeGenderOptions.map((option) => (
+                      <button
+                        key={option.id}
+                        aria-pressed={judgeAvatar.gender === option.id}
+                        className={
+                          judgeAvatar.gender === option.id ? "selected" : ""
+                        }
+                        onClick={() =>
+                          updateJudgeAvatar({ gender: option.id })
+                        }
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </fieldset>
+
+                <fieldset>
+                  <legend>外觀</legend>
+                  <div className="look-options">
+                    {judgeLooks.map((option) => (
+                      <button
+                        key={option.id}
+                        aria-label={`${option.label}外觀`}
+                        aria-pressed={judgeAvatar.look === option.id}
+                        className={
+                          judgeAvatar.look === option.id ? "selected" : ""
+                        }
+                        onClick={() => updateJudgeAvatar({ look: option.id })}
+                      >
+                        <i
+                          style={
+                            {
+                              "--swatch-skin": option.skin,
+                              "--swatch-hair": option.hair,
+                            } as React.CSSProperties
+                          }
+                        />
+                        <span>{option.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </fieldset>
+
+                <fieldset>
+                  <legend>法袍</legend>
+                  <div className="outfit-options">
+                    {judgeOutfits.map((option) => {
+                      const locked = option.minLevel > judgeLevel;
+                      return (
+                        <button
+                          key={option.id}
+                          aria-label={
+                            locked
+                              ? `${option.label}，LV.${option.minLevel} 解鎖`
+                              : option.label
+                          }
+                          aria-pressed={judgeAvatar.outfit === option.id}
+                          className={`${judgeAvatar.outfit === option.id ? "selected" : ""} ${locked ? "locked" : ""}`}
+                          disabled={locked}
+                          onClick={() =>
+                            updateJudgeAvatar({ outfit: option.id })
+                          }
+                        >
+                          <i
+                            style={
+                              {
+                                "--robe-color": option.outfit,
+                                "--robe-accent": option.accent,
+                              } as React.CSSProperties
+                            }
+                          />
+                          <span>{locked ? `LV.${option.minLevel}` : option.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </fieldset>
+              </div>
             </div>
           </div>
         </section>
@@ -1959,44 +2295,28 @@ export function PixelCourt() {
             </div>
           </div>
 
-          {rewardOpen && (
+          {rewardOpen && levelUpLevel && (
             <div className="reward-pop">
               <button onClick={() => setRewardOpen(false)}>×</button>
-              <p className="pixel-kicker">NEW ITEM UNLOCKED</p>
-              <div className="reward-robe">
-                <i />
-                <b />
+              <p className="pixel-kicker">JUDGE LEVEL UP</p>
+              <div className="level-up-avatar">
+                <CharacterSprite
+                  character={judgeCharacter}
+                  size="normal"
+                  pose="celebrate"
+                />
+                <strong>LV.{levelUpLevel}</strong>
               </div>
-              <h3>「夜色法官袍」</h3>
-              <p>你引用證據完成了第一宗案件。</p>
-              <span>已加入法官衣櫃</span>
+              <h3>{judgeRankNames[levelUpLevel - 1]}</h3>
+              <p>
+                案件權限已提升至 P.{levelUpCaseDifficulty}
+                {newlyUnlockedOutfit
+                  ? `，並解鎖「${newlyUnlockedOutfit.label}」`
+                  : "。"}
+              </p>
+              <span>下一宗案件已更新</span>
             </div>
           )}
-        </section>
-      )}
-
-      {screen === "roster" && (
-        <section className="roster-stage game-panel">
-          <div className="roster-heading">
-            <div>
-              <p className="pixel-kicker">CITY CHARACTER ARCHIVE</p>
-              <h2>角色名冊</h2>
-              <p>已建立 24 名成人角色；案件引擎會從名冊安排人物。</p>
-            </div>
-            <button className="pixel-button dark" onClick={() => setScreen("title")}>
-              ← 返回大廳
-            </button>
-          </div>
-          <div className="roster-grid">
-            {characters.map((character, index) => (
-              <div key={character.id} className="roster-character">
-                <span>{String(index + 1).padStart(2, "0")}</span>
-                <CharacterSprite character={character} size="small" />
-                <strong>{character.name}</strong>
-                <small>{character.role}</small>
-              </div>
-            ))}
-          </div>
         </section>
       )}
 
@@ -2044,6 +2364,14 @@ export function PixelCourt() {
         <div className="behavior-console prior-performance">
           <h3>過往表現摘要</h3>
           <dl>
+            <div>
+              <dt>法官等級</dt>
+              <dd>LV.{judgeLevel}</dd>
+            </div>
+            <div>
+              <dt>累積 EXP</dt>
+              <dd>{studentProgress.totalXp}</dd>
+            </div>
             <div>
               <dt>已完成案件</dt>
               <dd>{studentProgress.completedCaseIds.length}/20</dd>

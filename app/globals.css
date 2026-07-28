@@ -242,9 +242,13 @@ textarea:focus-visible {
 }
 
 .judge-rank > span {
+  background: #5c3a25;
+  border: 2px solid #a87638;
   color: var(--gold);
-  filter: drop-shadow(0 0 6px rgba(233, 185, 78, 0.5));
-  font-size: 24px;
+  font-family: "Courier New", monospace;
+  font-size: 10px;
+  font-weight: 900;
+  padding: 7px 5px;
 }
 
 .judge-rank small,
@@ -260,6 +264,22 @@ textarea:focus-visible {
 
 .judge-rank strong {
   font-size: 12px;
+}
+
+.judge-rank div > i {
+  background: #29252a;
+  display: block;
+  height: 4px;
+  margin-top: 3px;
+  overflow: hidden;
+  width: 76px;
+}
+
+.judge-rank div > i b {
+  background: var(--gold);
+  display: block;
+  height: 100%;
+  transition: width 500ms steps(8);
 }
 
 .slp-key {
@@ -413,10 +433,12 @@ textarea:focus-visible {
   border: 6px solid #5d3b27;
   border-radius: 50%;
   height: 62px;
-  left: calc(50% + 110px);
+  left: 50%;
   position: absolute;
-  top: 14%;
+  top: 25%;
+  transform: translateX(-50%);
   width: 62px;
+  z-index: 2;
 }
 
 .court-clock i,
@@ -502,6 +524,18 @@ textarea:focus-visible {
   position: absolute;
   transform: translateX(-50%);
   z-index: 8;
+}
+
+.player-judge {
+  bottom: 126px;
+  left: 50%;
+  position: absolute;
+  transform: translateX(-50%);
+  z-index: 3;
+}
+
+.player-judge .pixel-person {
+  filter: drop-shadow(4px 5px 0 rgba(0, 0, 0, 0.28));
 }
 
 .judge-chair {
@@ -748,6 +782,18 @@ textarea:focus-visible {
   position: absolute;
   top: calc(77px * var(--scale));
   width: calc(52px * var(--scale));
+}
+
+.pixel-person.gender-boy .pixel-body {
+  clip-path: polygon(5% 0, 95% 0, 100% 100%, 0 100%);
+}
+
+.pixel-person.gender-girl .pixel-body {
+  clip-path: polygon(13% 0, 87% 0, 100% 100%, 0 100%);
+}
+
+.pixel-person.gender-neutral .pixel-body {
+  clip-path: polygon(8% 0, 92% 0, 96% 100%, 4% 100%);
 }
 
 .lapel {
@@ -1133,6 +1179,7 @@ textarea:focus-visible {
 
 .title-screen {
   inset: 74px 0 0;
+  overflow-y: auto;
   position: absolute;
   z-index: 20;
 }
@@ -1145,53 +1192,72 @@ textarea:focus-visible {
   position: absolute;
 }
 
-.title-content {
-  left: 7vw;
-  position: absolute;
-  top: 9vh;
+.judge-chambers {
+  align-items: center;
+  display: grid;
+  gap: clamp(24px, 4vw, 70px);
+  grid-template-columns: minmax(310px, 0.85fr) minmax(510px, 1.15fr);
+  min-height: 100%;
+  padding: 3vh 5vw;
+  position: relative;
   z-index: 2;
+}
+
+.title-content {
+  max-width: 540px;
 }
 
 .title-content h1 {
   color: var(--cream);
   filter: drop-shadow(7px 7px 0 #301a21);
   font-family: "Courier New", monospace;
-  font-size: clamp(78px, 10vw, 150px);
+  font-size: clamp(58px, 6.4vw, 98px);
   font-weight: 1000;
-  letter-spacing: -0.12em;
-  line-height: 0.73;
-  margin: 25px 0 28px;
+  letter-spacing: -0.1em;
+  line-height: 0.78;
+  margin: 18px 0 22px;
 }
 
 .title-content h1 span {
   color: var(--gold);
-  margin-left: 0.3em;
+  margin-left: 0.18em;
 }
 
-.title-rule {
-  align-items: center;
-  display: flex;
-  gap: 15px;
-  margin-left: 5px;
-  width: min(560px, 55vw);
-}
-
-.title-rule i {
-  background: #8d7452;
-  height: 2px;
-  width: 45px;
-}
-
-.title-rule p {
+.title-subtitle {
   color: #d9c9aa;
-  font-size: 16px;
-  letter-spacing: 0.08em;
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0;
 }
 
-.title-actions {
-  display: flex;
-  gap: 12px;
-  margin: 32px 0 0 5px;
+.next-case-ticket {
+  border-left: 4px solid var(--gold);
+  margin: 23px 0 24px;
+  padding: 4px 0 5px 14px;
+}
+
+.next-case-ticket span {
+  color: #91887d;
+  display: block;
+  font-family: "Courier New", monospace;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+}
+
+.next-case-ticket strong {
+  color: #f0ddbb;
+  display: block;
+  font-family: "Courier New", "PingFang HK", monospace;
+  font-size: 14px;
+  margin: 6px 0;
+}
+
+.next-case-ticket p {
+  color: #a99d90;
+  font-size: 11px;
+  line-height: 1.5;
+  margin: 0;
 }
 
 .pixel-button {
@@ -1246,89 +1312,237 @@ textarea:focus-visible {
   transform: none;
 }
 
-.save-note {
-  color: #766f68;
-  font-family: "Courier New", monospace;
-  font-size: 9px;
-  margin: 19px 0 0 8px;
+.accept-case-button {
+  min-width: 210px;
 }
 
-.recommended-case-strip {
-  border-left: 3px solid var(--gold);
-  display: grid;
-  gap: 3px;
-  margin: 20px 0 0 7px;
-  max-width: 520px;
-  padding: 4px 0 4px 13px;
+.avatar-customizer {
+  align-self: center;
+  background: rgba(15, 16, 22, 0.92);
+  border: 4px solid #413942;
+  box-shadow:
+    inset 0 0 0 3px #17151b,
+    10px 10px 0 rgba(0, 0, 0, 0.32);
+  padding: 18px;
+  width: 100%;
 }
 
-.recommended-case-strip span,
-.recommended-case-strip small {
-  color: #8d857b;
-  font-family: "Courier New", "PingFang HK", monospace;
-  font-size: 8px;
+.avatar-preview {
+  align-items: end;
+  background:
+    linear-gradient(90deg, transparent 49%, rgba(225, 184, 78, 0.11) 50%, transparent 51%),
+    repeating-linear-gradient(90deg, #29232b 0 58px, #251f27 58px 62px);
+  border-bottom: 4px solid #76543a;
+  display: flex;
+  height: 190px;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
 }
 
-.recommended-case-strip strong {
-  color: #e7d9c1;
-  font-size: 12px;
-}
-
-.title-judge {
-  bottom: 7%;
+.avatar-preview::after {
+  background: repeating-linear-gradient(90deg, #674630 0 70px, #593a2d 70px 74px);
+  bottom: 0;
+  content: "";
+  height: 18px;
+  left: 0;
   position: absolute;
-  right: 9%;
+  right: 0;
+}
+
+.avatar-preview .pixel-person {
+  filter: drop-shadow(8px 7px 0 rgba(0, 0, 0, 0.35));
+  margin-bottom: 12px;
   z-index: 3;
 }
 
-.judge-silhouette {
-  align-items: center;
-  animation: silhouettePulse 2.2s steps(2) infinite;
-  background:
-    linear-gradient(#151219 0 18%, #28202a 18% 100%);
-  border: 7px solid #50404a;
-  box-shadow:
-    inset -18px 0 0 #0d0c11,
-    10px 10px 0 rgba(0, 0, 0, 0.4);
-  clip-path: polygon(20% 0, 80% 0, 84% 18%, 100% 35%, 87% 100%, 13% 100%, 0 35%, 16% 18%);
-  display: flex;
-  height: 390px;
-  justify-content: center;
-  width: 245px;
-}
-
-.judge-silhouette span {
-  color: #66586a;
-  font-family: "Courier New", monospace;
-  font-size: 95px;
-  font-weight: 900;
-}
-
-.new-badge {
-  animation: badgeBlink 900ms steps(2) infinite;
-  background: var(--red);
-  box-shadow: 4px 4px 0 #451c21;
-  color: white;
-  font-family: "Courier New", monospace;
-  font-size: 10px;
-  font-weight: 900;
-  left: -25px;
-  letter-spacing: 0.12em;
-  padding: 9px 12px;
+.avatar-spotlight {
+  background: rgba(255, 218, 123, 0.17);
+  clip-path: polygon(42% 0, 58% 0, 88% 100%, 12% 100%);
+  inset: 0;
   position: absolute;
-  top: 24px;
 }
 
-@keyframes silhouettePulse {
-  50% {
-    filter: brightness(1.18);
+.avatar-level-badge {
+  background: var(--red);
+  box-shadow: 4px 4px 0 #3d181e;
+  display: grid;
+  left: 13px;
+  padding: 8px 10px;
+  position: absolute;
+  top: 12px;
+  z-index: 5;
+}
+
+.avatar-level-badge span,
+.avatar-level-badge strong {
+  color: #fff4de;
+  font-family: "Courier New", "PingFang HK", monospace;
+}
+
+.avatar-level-badge span {
+  font-size: 16px;
+  font-weight: 1000;
+}
+
+.avatar-level-badge strong {
+  font-size: 8px;
+}
+
+.level-panel {
+  border-bottom: 1px solid #403a42;
+  padding: 14px 2px 13px;
+}
+
+.level-panel-heading {
+  align-items: end;
+  display: flex;
+  justify-content: space-between;
+}
+
+.level-panel-heading span,
+.level-panel-heading strong {
+  display: block;
+  font-family: "Courier New", "PingFang HK", monospace;
+}
+
+.level-panel-heading span {
+  color: #817983;
+  font-size: 7px;
+  letter-spacing: 0.16em;
+}
+
+.level-panel-heading strong {
+  color: #f0ddbb;
+  font-size: 11px;
+  margin-top: 3px;
+}
+
+.level-panel-heading b {
+  color: var(--gold-light);
+  font-family: "Courier New", monospace;
+  font-size: 12px;
+}
+
+.level-track {
+  background: #222027;
+  border: 2px solid #4a4249;
+  height: 12px;
+  margin: 8px 0 6px;
+  overflow: hidden;
+}
+
+.level-track i {
+  animation: xpFill 850ms steps(10) both;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 16px, rgba(255, 255, 255, 0.24) 16px 18px),
+    var(--gold);
+  display: block;
+  height: 100%;
+}
+
+.level-panel p {
+  color: #8f878e;
+  font-size: 9px;
+  line-height: 1.45;
+  margin: 0;
+}
+
+@keyframes xpFill {
+  from {
+    max-width: 0;
+  }
+  to {
+    max-width: 100%;
   }
 }
 
-@keyframes badgeBlink {
-  50% {
-    transform: translateY(-3px);
-  }
+.avatar-controls {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 0.75fr 1.25fr 1.35fr;
+  padding-top: 13px;
+}
+
+.avatar-controls fieldset {
+  border: 0;
+  margin: 0;
+  min-width: 0;
+  padding: 0;
+}
+
+.avatar-controls legend {
+  color: var(--gold);
+  font-family: "Courier New", "PingFang HK", monospace;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  margin-bottom: 7px;
+}
+
+.gender-options,
+.look-options,
+.outfit-options {
+  display: grid;
+  gap: 6px;
+}
+
+.gender-options {
+  grid-template-columns: 1fr;
+}
+
+.look-options,
+.outfit-options {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.avatar-controls button {
+  align-items: center;
+  background: #24232a;
+  border: 2px solid #46414a;
+  color: #bbb0a3;
+  cursor: pointer;
+  display: flex;
+  font-family: "Courier New", "PingFang HK", monospace;
+  font-size: 8px;
+  font-weight: 900;
+  gap: 5px;
+  justify-content: center;
+  min-height: 36px;
+  padding: 4px 5px;
+}
+
+.avatar-controls button:hover {
+  border-color: #8b724a;
+}
+
+.avatar-controls button.selected {
+  background: #4c3829;
+  border-color: var(--gold);
+  box-shadow: inset 0 0 0 2px #241b18;
+  color: var(--gold-light);
+}
+
+.avatar-controls button.locked {
+  filter: grayscale(0.8);
+  opacity: 0.48;
+}
+
+.look-options button i {
+  background:
+    linear-gradient(90deg, var(--swatch-hair) 0 44%, var(--swatch-skin) 44%);
+  border: 2px solid #151419;
+  height: 17px;
+  width: 17px;
+}
+
+.outfit-options button i {
+  background: var(--robe-color);
+  border: 2px solid #151419;
+  box-shadow: inset 0 -4px 0 var(--robe-accent);
+  clip-path: polygon(18% 0, 82% 0, 100% 100%, 0 100%);
+  height: 18px;
+  width: 17px;
 }
 
 .game-panel {
@@ -2604,6 +2818,7 @@ textarea:focus-visible {
 }
 
 .reward-pop {
+  animation: levelUpLand 700ms steps(6) both;
   background: #17171d;
   border: 6px solid var(--gold);
   box-shadow:
@@ -2617,6 +2832,20 @@ textarea:focus-visible {
   transform: translate(-50%, -50%);
   width: min(380px, 85vw);
   z-index: 170;
+}
+
+@keyframes levelUpLand {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -62%) scale(1.35);
+  }
+  70% {
+    opacity: 1;
+    transform: translate(-50%, -48%) scale(0.96);
+  }
+  to {
+    transform: translate(-50%, -50%) scale(1);
+  }
 }
 
 .reward-pop > button {
@@ -2648,34 +2877,35 @@ textarea:focus-visible {
   font-size: 9px;
 }
 
-.reward-robe {
-  height: 120px;
+.level-up-avatar {
+  align-items: end;
+  background:
+    radial-gradient(circle at 50% 55%, rgba(246, 200, 95, 0.28), transparent 55%),
+    #20202a;
+  border-bottom: 4px solid #6c4c31;
+  display: flex;
+  height: 138px;
+  justify-content: center;
   margin: 12px auto 0;
+  overflow: hidden;
   position: relative;
-  width: 120px;
+  width: 180px;
 }
 
-.reward-robe i {
-  background: #222c42;
-  box-shadow:
-    inset -15px 0 0 #151d30,
-    5px 5px 0 #07090f;
-  clip-path: polygon(28% 0, 72% 0, 100% 35%, 87% 100%, 13% 100%, 0 35%);
-  height: 105px;
-  left: 13px;
-  position: absolute;
-  top: 5px;
-  width: 94px;
+.level-up-avatar .pixel-person {
+  margin-bottom: -18px;
 }
 
-.reward-robe b {
-  border-bottom: 50px solid transparent;
-  border-left: 15px solid transparent;
-  border-right: 15px solid transparent;
-  border-top: 40px solid var(--gold);
-  left: 45px;
+.level-up-avatar > strong {
+  background: var(--red);
+  box-shadow: 3px 3px 0 #3d181e;
+  color: white;
+  font-family: "Courier New", monospace;
+  font-size: 15px;
+  left: 8px;
+  padding: 6px 8px;
   position: absolute;
-  top: 5px;
+  top: 8px;
 }
 
 .roster-stage {
@@ -3005,24 +3235,22 @@ textarea:focus-visible {
     display: none;
   }
 
-  .title-content {
-    left: 6vw;
-    top: 6vh;
+  .judge-chambers {
+    align-items: start;
+    grid-template-columns: 1fr;
+    padding: 34px 6vw 56px;
   }
 
-  .recommended-case-strip {
-    max-width: 52vw;
+  .title-content {
+    max-width: none;
   }
 
   .title-content h1 {
-    font-size: clamp(72px, 15vw, 120px);
+    font-size: clamp(60px, 12vw, 96px);
   }
 
-  .title-judge {
-    bottom: 5%;
-    right: 5%;
-    transform: scale(0.8);
-    transform-origin: bottom right;
+  .avatar-customizer {
+    max-width: 700px;
   }
 
   .approval-screen {
@@ -3171,22 +3399,38 @@ textarea:focus-visible {
     display: none;
   }
 
-  .title-judge {
-    opacity: 0.52;
-    transform: scale(0.65);
+  .court-clock {
+    display: none;
   }
 
-  .title-rule {
-    width: 88vw;
+  .judge-chambers {
+    gap: 24px;
+    padding: 26px 5vw 48px;
   }
 
-  .title-actions {
-    align-items: flex-start;
-    flex-direction: column;
+  .title-content h1 {
+    font-size: clamp(54px, 18vw, 82px);
   }
 
-  .recommended-case-strip {
-    max-width: 86vw;
+  .avatar-customizer {
+    padding: 12px;
+  }
+
+  .avatar-preview {
+    height: 175px;
+  }
+
+  .avatar-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .gender-options {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .look-options,
+  .outfit-options {
+    grid-template-columns: repeat(2, 1fr);
   }
 
   .court-side {

@@ -61,6 +61,18 @@ test("ships the complete playable loop", async () => {
   assert.match(app, /pixel-court-last-case/);
   assert.match(app, /shuffleOptions/);
   assert.match(app, /studentProgressKey/);
+  assert.match(app, /judgeAvatar/);
+  assert.match(app, /judgeLevelThresholds/);
+  assert.match(app, /getUnlockedDifficulty/);
+  assert.match(app, /updateJudgeAvatar/);
+  assert.match(app, /JUDGE LEVEL UP/);
+  assert.match(app, /性別/);
+  assert.match(app, /外觀/);
+  assert.match(app, /法袍/);
+  assert.doesNotMatch(app, /角色名冊/);
+  assert.doesNotMatch(app, /推薦難度/);
+  assert.doesNotMatch(app, /自動儲存 · 獨立案件/);
+  assert.doesNotMatch(app, /約 10 分鐘/);
   assert.match(app, /judgmentCloseness/);
   assert.match(app, /verdictReaction/);
   assert.doesNotMatch(app, /screen === "approval"/);
@@ -76,6 +88,13 @@ test("ships the complete playable loop", async () => {
   assert.match(cases, /idealJudgments/);
   assert.match(cases, /challengingOptions/);
   assert.match(css, /@keyframes spriteTalk/);
+  assert.match(css, /\.player-judge/);
+  assert.match(css, /\.avatar-customizer/);
+  assert.match(css, /\.level-track/);
+  assert.match(
+    css.match(/\.court-clock\s*\{[\s\S]*?\}/)?.[0] ?? "",
+    /left:\s*50%/,
+  );
   assert.match(css, /image-rendering:\s*pixelated/);
   assert.doesNotMatch(
     css.match(/\.passage-paper\s*\{[\s\S]*?\}/)?.[0] ?? "",
