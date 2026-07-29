@@ -10,11 +10,20 @@ import {
   generatedCases,
   generatedIdealJudgments,
 } from "./generated-cases";
+import {
+  generatedCases as generatedCases031To040,
+  generatedIdealJudgments as generatedIdealJudgments031To040,
+} from "./generated-cases-031-040";
 
-const caseLibrary = [...authoredCases, ...generatedCases];
+const caseLibrary = [
+  ...authoredCases,
+  ...generatedCases,
+  ...generatedCases031To040,
+];
 const idealJudgments = {
   ...authoredIdealJudgments,
   ...generatedIdealJudgments,
+  ...generatedIdealJudgments031To040,
 };
 
 type Screen =
@@ -1731,7 +1740,7 @@ export function PixelCourt() {
           <div className="login-seal" aria-hidden="true">
             <span>判</span>
             <strong>STUDENT SESSION</strong>
-            <i>30 CASES READY</i>
+            <i>40 CASES READY</i>
           </div>
         </section>
       )}
@@ -2467,7 +2476,7 @@ export function PixelCourt() {
             </div>
             <div>
               <dt>已完成案件</dt>
-              <dd>{studentProgress.completedCaseIds.length}/30</dd>
+              <dd>{studentProgress.completedCaseIds.length}/40</dd>
             </div>
             <div>
               <dt>完成節數</dt>

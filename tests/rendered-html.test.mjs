@@ -39,15 +39,26 @@ test("server-renders Pixel Court", async () => {
 });
 
 test("ships the complete playable loop", async () => {
-  const [app, cases, generatedCases, css, layout, packageJson] =
-    await Promise.all([
+  const [
+    app,
+    cases,
+    generatedCases,
+    generatedCases031To040,
+    css,
+    layout,
+    packageJson,
+  ] = await Promise.all([
     readFile(new URL("../app/pixel-court.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/case-library.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/generated-cases.ts", import.meta.url), "utf8"),
+    readFile(
+      new URL("../app/generated-cases-031-040.ts", import.meta.url),
+      "utf8",
+    ),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
-    ]);
+  ]);
 
   for (const construct of [
     "factual",
@@ -100,8 +111,14 @@ test("ships the complete playable loop", async () => {
     (generatedCases.match(/"caseNumber": "\d{3}"/g) ?? []).length,
     10,
   );
-  assert.match(app, /\.\.\.authoredCases, \.\.\.generatedCases/);
+  assert.equal(
+    (generatedCases031To040.match(/"caseNumber": "\d{3}"/g) ?? []).length,
+    10,
+  );
+  assert.match(app, /\.\.\.authoredCases,[\s\S]*\.\.\.generatedCases,/);
   assert.match(app, /\.\.\.generatedIdealJudgments/);
+  assert.match(app, /\.\.\.generatedCases031To040/);
+  assert.match(app, /\.\.\.generatedIdealJudgments031To040/);
   assert.match(cases, /grade: 1/);
   assert.match(cases, /grade: 6/);
   assert.match(cases, /edbFocus/);
@@ -153,11 +170,8 @@ test("enforces the upper-primary case-length ladder", async () => {
   }
 });
 
-test("validates the clinician-reviewed generated case batch", async () => {
-  const source = await readFile(
-    new URL("../app/generated-cases.ts", import.meta.url),
-    "utf8",
-  );
+async function loadGeneratedCaseBatch(relativePath) {
+  const source = await readFile(new URL(relativePath, import.meta.url), "utf8");
   const compiled = ts.transpileModule(source, {
     compilerOptions: {
       module: ts.ModuleKind.ESNext,
@@ -166,7 +180,23 @@ test("validates the clinician-reviewed generated case batch", async () => {
   }).outputText;
   const moduleUrl = `data:text/javascript;base64,${Buffer.from(compiled).toString("base64")}`;
   const { generatedCases, generatedIdealJudgments } = await import(moduleUrl);
+  return { source, generatedCases, generatedIdealJudgments };
+}
+
+function validateGeneratedCaseBatch({
+  source,
+  generatedCases,
+  generatedIdealJudgments,
+  expectedFirst,
+}) {
   const minimums = { 3: 300, 4: 400, 5: 500, 6: 600 };
+  const constructs = [
+    "factual",
+    "inferential",
+    "semantic",
+    "integration",
+    "evidence",
+  ];
   const severity = {
     none: 0,
     warning: 1,
@@ -182,10 +212,14 @@ test("validates the clinician-reviewed generated case batch", async () => {
   assert.equal(generatedCases.length, 10);
   assert.equal(Object.keys(generatedIdealJudgments).length, 10);
 
-  for (const courtCase of generatedCases) {
+  generatedCases.forEach((courtCase, caseIndex) => {
     assert.ok(!ids.has(courtCase.id), `duplicate case ID ${courtCase.id}`);
     ids.add(courtCase.id);
-    assert.match(courtCase.caseNumber, /^0(?:2[1-9]|30)$/);
+    assert.equal(
+      Number(courtCase.caseNumber),
+      expectedFirst + caseIndex,
+      `unexpected case number ${courtCase.caseNumber}`,
+    );
     assert.equal(courtCase.questions.length, 5);
 
     const passages = [
@@ -199,8 +233,8 @@ test("validates the clinician-reviewed generated case batch", async () => {
       characterCount >= minimums[courtCase.grade],
       `${courtCase.id} is below its P.${courtCase.grade} minimum`,
     );
-
-    for (const question of courtCase.questions) {
+    courtCase.questions.forEach((question, questionIndex) => {
+      assert.equal(question.construct, constructs[questionIndex]);
       assert.equal(question.options.length, 4);
       assert.equal(new Set(question.options).size, 4);
       assert.ok(question.answer >= 0 && question.answer <= 3);
@@ -213,7 +247,11 @@ test("validates the clinician-reviewed generated case batch", async () => {
         evidenceParts.every((part) => passages.includes(part)),
         `${question.id} contains an evidence quote not found in the passages`,
       );
-    }
+      if (question.construct === "semantic") {
+        const target = question.prompt.match(/「([^」]+)」/)?.[1];
+        assert.ok(target && passages.includes(target));
+      }
+    });
 
     const ideal = generatedIdealJudgments[courtCase.id];
     assert.ok(ideal, `${courtCase.id} is missing an ideal judgment`);
@@ -222,11 +260,38 @@ test("validates the clinician-reviewed generated case batch", async () => {
       ideal.reasoning.match(/[\u3400-\u4dbf\u4e00-\u9fff]/g) ?? []
     ).length;
     assert.ok(reasoningLength >= 70 && reasoningLength <= 150);
-  }
+    if (["not-guilty", "insufficient"].includes(ideal.finding)) {
+      assert.equal(ideal.severity, 0);
+    }
+  });
 
   assert.ok(
     Math.max(...answerCounts) - Math.min(...answerCounts) <= 1,
     `answer positions are imbalanced: ${answerCounts.join(", ")}`,
   );
   assert.doesNotMatch(source, /\bcompeting\b/i);
+  return ids;
+}
+
+test("validates both clinician-reviewed generated case batches", async () => {
+  const firstBatch = await loadGeneratedCaseBatch(
+    "../app/generated-cases.ts",
+  );
+  const secondBatch = await loadGeneratedCaseBatch(
+    "../app/generated-cases-031-040.ts",
+  );
+
+  const firstIds = validateGeneratedCaseBatch({
+    ...firstBatch,
+    expectedFirst: 21,
+  });
+  const secondIds = validateGeneratedCaseBatch({
+    ...secondBatch,
+    expectedFirst: 31,
+  });
+
+  assert.equal(
+    new Set([...firstIds, ...secondIds]).size,
+    firstIds.size + secondIds.size,
+  );
 });
