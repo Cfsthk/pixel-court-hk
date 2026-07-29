@@ -785,7 +785,6 @@ const punishments = [
   { id: "compensation", label: "賠償店主", icon: "$" },
   { id: "fine", label: "罰款", icon: "¢" },
   { id: "service", label: "社會服務令", icon: "✦" },
-  { id: "probation", label: "感化令", icon: "◎" },
   { id: "custody", label: "監禁", icon: "▥" },
 ];
 
@@ -795,7 +794,6 @@ const punishmentSeverity: Record<string, number> = {
   compensation: 2,
   fine: 3,
   service: 3,
-  probation: 4,
   custody: 5,
 };
 
@@ -1197,14 +1195,6 @@ export function PixelCourt() {
               ? 1
               : 0;
 
-  const weakestConstruct = useMemo(
-    () =>
-      (Object.keys(mastery) as Construct[]).sort(
-        (a, b) => mastery[a] - mastery[b],
-      )[0],
-    [mastery],
-  );
-
   const independentCorrect = records.filter(
     (record) => record.correct && record.cueLevel === 0,
   ).length;
@@ -1360,16 +1350,6 @@ export function PixelCourt() {
     setActiveCaseId(recommended.id);
     setScreen("title");
     playTone("success");
-  }
-
-  function logOutStudent() {
-    window.speechSynthesis?.cancel();
-    resetGame();
-    setStudentProfile(null);
-    setInspectorOpen(false);
-    setLoginNumber("");
-    setJudgeAvatar(defaultJudgeAvatar);
-    setScreen("login");
   }
 
   function updateJudgeAvatar(patch: Partial<JudgeAvatar>) {
@@ -1606,7 +1586,7 @@ export function PixelCourt() {
         <button
           className="court-brand"
           onClick={resetGame}
-          aria-label="返回遊戲主畫面"
+          aria-label="返回案件大廳"
         >
           <span>判</span>
           <div>
@@ -1629,16 +1609,6 @@ export function PixelCourt() {
 
         {studentProfile && (
           <div className="hud-actions">
-            <button className="student-hud" onClick={logOutStudent}>
-              <span>
-                {studentProfile.grade}
-                {studentProfile.className}
-              </span>
-              <div>
-                <small>STUDENT</small>
-                <strong>{studentProfile.classNumber}號 · 登出</strong>
-              </div>
-            </button>
             <div className="judge-rank">
               <span>LV.{judgeLevel}</span>
               <div>
@@ -1649,8 +1619,16 @@ export function PixelCourt() {
                 </i>
               </div>
             </div>
-            <button onClick={() => setInspectorOpen(true)} className="slp-key">
-              SLP
+            <button
+              onClick={() => setInspectorOpen(true)}
+              className="profile-key"
+              aria-label="查看我的表現與等級"
+              title="我的法官檔案"
+            >
+              <span className="human-icon" aria-hidden="true">
+                <i />
+                <b />
+              </span>
             </button>
           </div>
         )}
@@ -2392,7 +2370,7 @@ export function PixelCourt() {
                 返回案件大廳
               </button>
               <button className="pixel-button dark" onClick={() => setInspectorOpen(true)}>
-                查看 SLP 紀錄
+                查看我的表現
               </button>
             </div>
           </div>
@@ -2426,13 +2404,18 @@ export function PixelCourt() {
         className={`inspector-backdrop ${inspectorOpen ? "open" : ""}`}
         onClick={() => setInspectorOpen(false)}
       />
-      <aside className={`slp-inspector ${inspectorOpen ? "open" : ""}`}>
+      <aside className={`profile-drawer ${inspectorOpen ? "open" : ""}`}>
         <div className="inspector-heading">
           <div>
-            <p className="pixel-kicker">SLP CONSOLE</p>
-            <h2>本次案件紀錄</h2>
+            <p className="pixel-kicker">JUDGE PROFILE</p>
+            <h2>我的法官檔案</h2>
           </div>
-          <button onClick={() => setInspectorOpen(false)}>×</button>
+          <button
+            onClick={() => setInspectorOpen(false)}
+            aria-label="關閉我的法官檔案"
+          >
+            ×
+          </button>
         </div>
         <div className="student-record">
           <span>{studentProfile?.grade ?? "—"}</span>
@@ -2442,11 +2425,33 @@ export function PixelCourt() {
                 ? `P.${studentProfile.grade}${studentProfile.className}班 · ${studentProfile.classNumber}號`
                 : "未登入學生"}
             </strong>
-            <p>分級閱讀路徑 · SLP 在場</p>
+            <p>分級閱讀路徑 · 個人進度</p>
+          </div>
+        </div>
+        <div className="profile-level-card">
+          <div className="profile-avatar">
+            <CharacterSprite
+              character={judgeCharacter}
+              size="small"
+              pose="celebrate"
+            />
+          </div>
+          <div className="profile-level-copy">
+            <span>LEVEL {judgeLevel}</span>
+            <h3>{judgeRankNames[judgeLevel - 1]}</h3>
+            <strong>{studentProgress.totalXp.toLocaleString()} EXP</strong>
+            <i>
+              <b style={{ width: `${levelProgress}%` }} />
+            </i>
+            <p>
+              {judgeLevel === judgeLevelThresholds.length
+                ? "你已到達最高法官等級！"
+                : `再取得 ${(nextLevelXp - studentProgress.totalXp).toLocaleString()} EXP 升級`}
+            </p>
           </div>
         </div>
         <div className="mastery-console">
-          <h3>閱讀狀態估計</h3>
+          <h3>我的閱讀能力</h3>
           {(Object.keys(mastery) as Construct[]).map((construct) => (
             <div key={construct}>
               <span>{constructMeta[construct].short}</span>
@@ -2461,15 +2466,11 @@ export function PixelCourt() {
               <strong>{Math.round(mastery[construct] * 100)}</strong>
             </div>
           ))}
-          <p>原型採用啟發式更新，並非標準分數。</p>
+          <p>完成更多案件，能力紀錄會逐步更新。</p>
         </div>
         <div className="behavior-console prior-performance">
-          <h3>過往表現摘要</h3>
+          <h3>我的案件成績</h3>
           <dl>
-            <div>
-              <dt>法官等級</dt>
-              <dd>LV.{judgeLevel}</dd>
-            </div>
             <div>
               <dt>累積 EXP</dt>
               <dd>{studentProgress.totalXp}</dd>
@@ -2479,7 +2480,7 @@ export function PixelCourt() {
               <dd>{studentProgress.completedCaseIds.length}/40</dd>
             </div>
             <div>
-              <dt>完成節數</dt>
+              <dt>完成案件次數</dt>
               <dd>{studentProgress.sessions}</dd>
             </div>
             <div>
@@ -2513,46 +2514,6 @@ export function PixelCourt() {
             </div>
           </dl>
         </div>
-        <div className="behavior-console">
-          <h3>可觀察行為</h3>
-          <dl>
-            <div>
-              <dt>已開啟陳詞</dt>
-              <dd>{openedSides.length}/2</dd>
-            </div>
-            <div>
-              <dt>陳詞切換</dt>
-              <dd>{passageSwitches}</dd>
-            </div>
-            <div>
-              <dt>TTS 字詞朗讀</dt>
-              <dd>{ttsCount}</dd>
-            </div>
-            <div>
-              <dt>SLP 協助</dt>
-              <dd>{slpHelp}</dd>
-            </div>
-            <div>
-              <dt>完成挑戰</dt>
-              <dd>{records.length}/5</dd>
-            </div>
-            <div>
-              <dt>目前優先取樣</dt>
-              <dd>{constructMeta[weakestConstruct].short}</dd>
-            </div>
-          </dl>
-        </div>
-        {screen === "reading" && (
-          <button
-            className="log-help-button"
-            onClick={() => setSlpHelp((count) => count + 1)}
-          >
-            + 記錄一次 SLP 協助
-          </button>
-        )}
-        <button className="reset-case-button" onClick={resetGame}>
-          重設本案原型
-        </button>
       </aside>
     </main>
   );

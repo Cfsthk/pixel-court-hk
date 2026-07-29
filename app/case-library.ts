@@ -42,7 +42,6 @@ export type IdealJudgment = {
     | "compensation"
     | "fine"
     | "service"
-    | "probation"
     | "custody";
   severity: 0 | 1 | 2 | 3 | 4 | 5;
   reasoning: string;

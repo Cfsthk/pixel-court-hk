@@ -354,7 +354,6 @@ const punishmentSeverity = {
   compensation: 2,
   fine: 3,
   service: 3,
-  probation: 4,
   custody: 5,
 };
 const constructs = [

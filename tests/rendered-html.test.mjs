@@ -103,7 +103,17 @@ test("ships the complete playable loop", async () => {
   assert.doesNotMatch(app, /screen === "approval"/);
   assert.match(app, /disabled=\{!finding \|\| !punishment \|\| !judgment\.trim\(\)\}/);
   assert.doesNotMatch(app, /judgment\.trim\(\)\.length < 12/);
-  assert.match(app, /SLP/);
+  assert.match(app, /JUDGE PROFILE/);
+  assert.match(app, /我的法官檔案/);
+  assert.match(app, /查看我的表現與等級/);
+  assert.match(app, /className="human-icon"/);
+  assert.doesNotMatch(app, /className="student-hud"/);
+  assert.doesNotMatch(app, /SLP CONSOLE|SLP 在場|查看 SLP 紀錄/);
+  assert.doesNotMatch(app, /感化令|probation/);
+  assert.match(
+    app,
+    /className="court-brand"[\s\S]*onClick=\{resetGame\}[\s\S]*aria-label="返回案件大廳"/,
+  );
   assert.match(app, /records\.length >= 5/);
   assert.match(app, /重看雙方陳詞/);
   assert.equal((cases.match(/caseNumber: "\d{3}"/g) ?? []).length, 20);
@@ -203,7 +213,6 @@ function validateGeneratedCaseBatch({
     compensation: 2,
     fine: 3,
     service: 3,
-    probation: 4,
     custody: 5,
   };
   const answerCounts = [0, 0, 0, 0];

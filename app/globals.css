@@ -194,47 +194,6 @@ textarea:focus-visible {
   justify-self: end;
 }
 
-.student-hud {
-  align-items: center;
-  background: transparent;
-  border: 0;
-  color: var(--cream);
-  cursor: pointer;
-  display: flex;
-  gap: 8px;
-  padding: 0;
-  text-align: left;
-}
-
-.student-hud > span {
-  align-items: center;
-  background: var(--burgundy);
-  border: 2px solid #8e4850;
-  color: white;
-  display: flex;
-  font-family: "Courier New", monospace;
-  font-size: 11px;
-  font-weight: 900;
-  height: 32px;
-  justify-content: center;
-  width: 32px;
-}
-
-.student-hud small,
-.student-hud strong {
-  display: block;
-  font-family: "Courier New", "PingFang HK", monospace;
-}
-
-.student-hud small {
-  color: #7d7771;
-  font-size: 7px;
-}
-
-.student-hud strong {
-  font-size: 9px;
-}
-
 .judge-rank {
   align-items: center;
   display: flex;
@@ -282,17 +241,50 @@ textarea:focus-visible {
   transition: width 500ms steps(8);
 }
 
-.slp-key {
+.profile-key {
+  align-items: center;
   background: #202936;
   border: 2px solid #405164;
   box-shadow: 2px 2px 0 #090c10;
   color: #9dc4d6;
   cursor: pointer;
-  font-family: "Courier New", monospace;
-  font-size: 10px;
-  font-weight: 900;
+  display: flex;
   height: 35px;
-  width: 45px;
+  justify-content: center;
+  padding: 0;
+  width: 38px;
+}
+
+.profile-key:hover,
+.profile-key:focus-visible {
+  background: #2d3b4b;
+  border-color: #78a6bb;
+}
+
+.human-icon {
+  height: 24px;
+  position: relative;
+  width: 22px;
+}
+
+.human-icon i {
+  background: #b9d5df;
+  box-shadow: inset -3px -2px 0 #7192a0;
+  height: 8px;
+  left: 7px;
+  position: absolute;
+  top: 1px;
+  width: 8px;
+}
+
+.human-icon b {
+  background: #9fc3d0;
+  bottom: 1px;
+  box-shadow: inset -4px -3px 0 #5c7b89;
+  height: 12px;
+  left: 3px;
+  position: absolute;
+  width: 16px;
 }
 
 .courtroom {
@@ -3022,7 +3014,7 @@ textarea:focus-visible {
   pointer-events: auto;
 }
 
-.slp-inspector {
+.profile-drawer {
   background: #121821;
   border-left: 5px solid #415266;
   bottom: 0;
@@ -3038,7 +3030,7 @@ textarea:focus-visible {
   z-index: 190;
 }
 
-.slp-inspector.open {
+.profile-drawer.open {
   transform: translateX(0);
 }
 
@@ -3092,6 +3084,80 @@ textarea:focus-visible {
   color: #7f8b91;
   font-size: 9px;
   margin: 4px 0 0;
+}
+
+.profile-level-card {
+  align-items: center;
+  background: #19222d;
+  border-bottom: 3px solid #3c4d5e;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 92px 1fr;
+  min-height: 130px;
+  padding: 14px 12px;
+}
+
+.profile-avatar {
+  align-items: end;
+  background:
+    linear-gradient(rgba(235, 190, 89, 0.13), transparent 65%),
+    #111820;
+  border: 3px solid #374857;
+  display: flex;
+  height: 100px;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.profile-avatar .pixel-person {
+  margin-bottom: -13px;
+}
+
+.profile-level-copy > span,
+.profile-level-copy > strong {
+  display: block;
+  font-family: "Courier New", monospace;
+}
+
+.profile-level-copy > span {
+  color: var(--gold);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+}
+
+.profile-level-copy h3 {
+  color: var(--cream);
+  font-family: "Courier New", "PingFang HK", monospace;
+  font-size: 17px;
+  margin: 5px 0;
+}
+
+.profile-level-copy > strong {
+  color: #d5e3e7;
+  font-size: 12px;
+}
+
+.profile-level-copy > i {
+  background: #293440;
+  border: 2px solid #3e4f60;
+  display: block;
+  height: 10px;
+  margin-top: 9px;
+  overflow: hidden;
+}
+
+.profile-level-copy > i b {
+  background: var(--gold);
+  display: block;
+  height: 100%;
+  transition: width 500ms steps(8);
+}
+
+.profile-level-copy p {
+  color: #84929a;
+  font-size: 8px;
+  margin: 6px 0 0;
 }
 
 .approval-mini {
@@ -3269,10 +3335,6 @@ textarea:focus-visible {
     display: none;
   }
 
-  .student-hud div {
-    display: none;
-  }
-
   .judge-chambers {
     align-items: start;
     grid-template-columns: 1fr;
@@ -3431,10 +3493,6 @@ textarea:focus-visible {
 
   .grade-selector {
     grid-template-columns: repeat(3, 1fr);
-  }
-
-  .student-hud {
-    display: none;
   }
 
   .court-clock {
