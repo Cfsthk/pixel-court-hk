@@ -2,10 +2,20 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  caseLibrary,
-  idealJudgments,
+  caseLibrary as authoredCases,
+  idealJudgments as authoredIdealJudgments,
   type CourtCase,
 } from "./case-library";
+import {
+  generatedCases,
+  generatedIdealJudgments,
+} from "./generated-cases";
+
+const caseLibrary = [...authoredCases, ...generatedCases];
+const idealJudgments = {
+  ...authoredIdealJudgments,
+  ...generatedIdealJudgments,
+};
 
 type Screen =
   | "login"
@@ -1721,7 +1731,7 @@ export function PixelCourt() {
           <div className="login-seal" aria-hidden="true">
             <span>判</span>
             <strong>STUDENT SESSION</strong>
-            <i>20 CASES READY</i>
+            <i>30 CASES READY</i>
           </div>
         </section>
       )}
@@ -2457,7 +2467,7 @@ export function PixelCourt() {
             </div>
             <div>
               <dt>已完成案件</dt>
-              <dd>{studentProgress.completedCaseIds.length}/20</dd>
+              <dd>{studentProgress.completedCaseIds.length}/30</dd>
             </div>
             <div>
               <dt>完成節數</dt>
