@@ -3632,3 +3632,270 @@ textarea:focus-visible {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Case archive: the opening screen is a board-game style case picker rather
+   than a login or dressing-room flow. */
+.case-select-stage {
+  background:
+    linear-gradient(135deg, rgba(18, 22, 30, 0.96), rgba(40, 24, 27, 0.94)),
+    radial-gradient(circle at 78% 12%, rgba(233, 185, 78, 0.14), transparent 35%);
+  inset: 74px 0 0;
+  overflow-y: auto;
+  padding: clamp(28px, 5vh, 64px) clamp(20px, 6vw, 96px) 48px;
+  position: absolute;
+  z-index: 24;
+}
+
+.case-select-stage::before {
+  border: 2px solid rgba(233, 185, 78, 0.15);
+  content: "";
+  inset: 18px;
+  pointer-events: none;
+  position: absolute;
+}
+
+.case-select-hero,
+.grade-deck,
+.case-select-heading,
+.case-card-grid,
+.selected-case-bar {
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 1240px;
+  position: relative;
+  z-index: 1;
+}
+
+.case-select-hero {
+  max-width: 940px;
+  text-align: center;
+}
+
+.case-select-hero h1 {
+  color: var(--cream);
+  font-family: "Courier New", "PingFang HK", monospace;
+  font-size: clamp(34px, 5vw, 68px);
+  letter-spacing: -0.08em;
+  line-height: 1.02;
+  margin: 13px 0 14px;
+}
+
+.case-select-hero h1 span {
+  color: var(--gold);
+}
+
+.case-select-hero > p:last-child {
+  color: #c6b9a4;
+  font-size: 14px;
+  line-height: 1.75;
+  margin: 0 auto;
+  max-width: 760px;
+}
+
+.grade-deck {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(6, 1fr);
+  margin-top: 30px;
+}
+
+.grade-deck button {
+  background: #20252e;
+  border: 2px solid #4a4a50;
+  box-shadow: 3px 3px 0 #0a0b0f;
+  color: #d7cbb8;
+  cursor: pointer;
+  display: grid;
+  gap: 5px;
+  min-height: 72px;
+  padding: 11px 8px;
+  text-align: left;
+  transition: transform 120ms steps(2), background 120ms steps(2);
+}
+
+.grade-deck button:hover {
+  transform: translateY(-2px);
+}
+
+.grade-deck button.selected {
+  background: #51352b;
+  border-color: var(--gold);
+  color: var(--gold-light);
+  transform: translateY(-3px);
+}
+
+.grade-deck button span {
+  font-family: "Courier New", monospace;
+  font-size: 21px;
+  font-weight: 900;
+}
+
+.grade-deck button small {
+  color: #938878;
+  font-size: 10px;
+}
+
+.grade-deck button.selected small {
+  color: #dfc681;
+}
+
+.case-select-heading {
+  align-items: end;
+  border-bottom: 2px solid #55413a;
+  display: flex;
+  justify-content: space-between;
+  margin-top: 34px;
+  padding-bottom: 12px;
+}
+
+.case-select-heading h2 {
+  font-family: "Courier New", "PingFang HK", monospace;
+  font-size: clamp(24px, 3vw, 36px);
+  letter-spacing: -0.05em;
+  margin: 5px 0 0;
+}
+
+.case-select-heading > span {
+  color: var(--gold-light);
+  font-family: "Courier New", monospace;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.case-card-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, 1fr);
+  margin-top: 15px;
+}
+
+.case-card {
+  align-items: start;
+  background: rgba(28, 30, 38, 0.92);
+  border: 2px solid #3c3e48;
+  box-shadow: 3px 3px 0 #0b0c10;
+  color: #dcd2c1;
+  cursor: pointer;
+  display: grid;
+  gap: 11px;
+  grid-template-columns: 34px 1fr;
+  min-height: 126px;
+  padding: 14px;
+  text-align: left;
+  transition: border-color 120ms steps(2), background 120ms steps(2), transform 120ms steps(2);
+}
+
+.case-card:hover {
+  border-color: #9b7843;
+  transform: translateY(-2px);
+}
+
+.case-card.selected {
+  background: rgba(76, 51, 43, 0.94);
+  border-color: var(--gold);
+  box-shadow: 4px 4px 0 #17100f;
+}
+
+.case-card-number {
+  align-items: center;
+  background: #12151c;
+  border: 1px solid #61544c;
+  color: var(--gold);
+  display: flex;
+  font-family: "Courier New", monospace;
+  font-size: 13px;
+  font-weight: 900;
+  height: 30px;
+  justify-content: center;
+}
+
+.case-card strong {
+  color: var(--cream);
+  display: block;
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.case-card p {
+  color: #ada397;
+  font-size: 11px;
+  line-height: 1.55;
+  margin: 6px 0 0;
+}
+
+.case-card > small {
+  border-left: 2px solid #78604a;
+  color: #b09e82;
+  font-size: 9px;
+  grid-column: 2;
+  line-height: 1.4;
+  padding-left: 8px;
+}
+
+.selected-case-bar {
+  align-items: center;
+  background: #13171f;
+  border: 2px solid #6d533d;
+  box-shadow: 5px 5px 0 #0a0b0e;
+  display: flex;
+  gap: 28px;
+  justify-content: space-between;
+  margin-top: 18px;
+  padding: 17px 20px;
+}
+
+.selected-case-bar span {
+  color: var(--gold);
+  font-family: "Courier New", monospace;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+
+.selected-case-bar strong {
+  color: var(--cream);
+  display: block;
+  font-size: 18px;
+  margin-top: 3px;
+}
+
+.selected-case-bar p {
+  color: #a99d90;
+  font-size: 11px;
+  line-height: 1.45;
+  margin: 4px 0 0;
+}
+
+@media (max-width: 900px) {
+  .case-card-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 620px) {
+  .case-select-stage {
+    padding: 24px 5vw 42px;
+  }
+
+  .case-select-stage::before {
+    inset: 10px;
+  }
+
+  .grade-deck {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .case-card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .selected-case-bar {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .selected-case-bar .pixel-button {
+    width: 100%;
+  }
+}

@@ -32,29 +32,18 @@ test("server-renders Pixel Court", async () => {
   const html = await response.text();
   assert.match(html, /判讀法庭/);
   assert.match(html, /PIXEL COURT/);
-  assert.match(html, /法官報到/);
-  assert.match(html, /班號數字鍵盤/);
-  assert.match(html, /進入法庭/);
+  assert.match(html, /選擇年級/);
+  assert.match(html, /30(?:<!-- -->)? 宗案件/);
+  assert.match(html, /開始審訊/);
+  assert.doesNotMatch(html, /法官報到|更衣室|進入法庭|班號數字鍵盤/);
+  assert.doesNotMatch(html, /JUDGE XP|EXP/);
   assert.doesNotMatch(html, /Your site is taking shape|react-loading-skeleton/);
 });
 
 test("ships the complete playable loop", async () => {
-  const [
-    app,
-    cases,
-    generatedCases,
-    generatedCases031To040,
-    css,
-    layout,
-    packageJson,
-  ] = await Promise.all([
+  const [app, expanded, css, layout, packageJson] = await Promise.all([
     readFile(new URL("../app/pixel-court.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/case-library.ts", import.meta.url), "utf8"),
-    readFile(new URL("../app/generated-cases.ts", import.meta.url), "utf8"),
-    readFile(
-      new URL("../app/generated-cases-031-040.ts", import.meta.url),
-      "utf8",
-    ),
+    readFile(new URL("../app/expanded-case-bank.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
@@ -73,24 +62,18 @@ test("ships the complete playable loop", async () => {
   assert.match(app, /speechSynthesis/);
   assert.match(app, /pixel-court-last-case/);
   assert.match(app, /shuffleOptions/);
-  assert.match(app, /studentProgressKey/);
-  assert.match(app, /judgeAvatar/);
-  assert.match(app, /judgeLevelThresholds/);
-  assert.match(app, /getUnlockedDifficulty/);
-  assert.match(app, /updateJudgeAvatar/);
   assert.match(app, /calculatePerformance/);
   assert.match(app, /averageTimeSec/);
   assert.match(app, /passageReviews/);
   assert.match(app, /optionChanges/);
-  assert.match(app, /performanceScore/);
   assert.match(app, /composite >= 80/);
   assert.match(app, /composite <= 50/);
-  assert.match(app, /JUDGE LEVEL UP/);
-  assert.match(app, /性別/);
-  assert.match(app, /外觀/);
-  assert.match(app, /法袍/);
-  assert.match(app, /\{ id: "boy", label: "男" \}/);
-  assert.match(app, /\{ id: "girl", label: "女" \}/);
+  assert.match(app, /expandedCases/);
+  assert.match(app, /casesByGrade/);
+  assert.match(app, /case-select-stage/);
+  assert.match(app, /judgmentGrade/);
+  assert.match(app, /公平判決比較/);
+  assert.doesNotMatch(app, /JUDGE XP|EXP|studentProgress|studentProfile|screen === "login"|screen === "title"/);
   assert.doesNotMatch(app, /不限/);
   assert.doesNotMatch(app, /neutral/);
   assert.doesNotMatch(app, /食物援助轉介|就業支援|家庭社工跟進|可同時加入支援措施/);
@@ -103,11 +86,7 @@ test("ships the complete playable loop", async () => {
   assert.doesNotMatch(app, /screen === "approval"/);
   assert.match(app, /disabled=\{!finding \|\| !punishment \|\| !judgment\.trim\(\)\}/);
   assert.doesNotMatch(app, /judgment\.trim\(\)\.length < 12/);
-  assert.match(app, /JUDGE PROFILE/);
-  assert.match(app, /我的法官檔案/);
-  assert.match(app, /查看我的表現與等級/);
-  assert.match(app, /className="human-icon"/);
-  assert.doesNotMatch(app, /className="student-hud"/);
+  assert.match(app, /本案表現摘要/);
   assert.doesNotMatch(app, /SLP CONSOLE|SLP 在場|查看 SLP 紀錄/);
   assert.doesNotMatch(app, /感化令|probation/);
   assert.match(
@@ -116,28 +95,15 @@ test("ships the complete playable loop", async () => {
   );
   assert.match(app, /records\.length >= 5/);
   assert.match(app, /重看雙方陳詞/);
-  assert.equal((cases.match(/caseNumber: "\d{3}"/g) ?? []).length, 20);
-  assert.equal(
-    (generatedCases.match(/"caseNumber": "\d{3}"/g) ?? []).length,
-    10,
-  );
-  assert.equal(
-    (generatedCases031To040.match(/"caseNumber": "\d{3}"/g) ?? []).length,
-    10,
-  );
-  assert.match(app, /\.\.\.authoredCases,[\s\S]*\.\.\.generatedCases,/);
-  assert.match(app, /\.\.\.generatedIdealJudgments/);
-  assert.match(app, /\.\.\.generatedCases031To040/);
-  assert.match(app, /\.\.\.generatedIdealJudgments031To040/);
-  assert.match(cases, /grade: 1/);
-  assert.match(cases, /grade: 6/);
-  assert.match(cases, /edbFocus/);
-  assert.match(cases, /idealJudgments/);
-  assert.match(cases, /challengingOptions/);
+  assert.match(expanded, /export const expandedCases/);
+  assert.match(expanded, /export const expandedIdealJudgments/);
+  assert.match(expanded, /export const casesByGrade/);
+  assert.match(expanded, /targetCharacters: 360/);
+  assert.match(expanded, /targetCharacters: 680/);
   assert.match(css, /@keyframes spriteTalk/);
   assert.match(css, /\.player-judge/);
-  assert.match(css, /\.avatar-customizer/);
-  assert.match(css, /\.level-track/);
+  assert.match(css, /\.case-select-stage/);
+  assert.match(css, /\.case-card-grid/);
   assert.match(
     css.match(/\.court-clock\s*\{[\s\S]*?\}/)?.[0] ?? "",
     /left:\s*50%/,
