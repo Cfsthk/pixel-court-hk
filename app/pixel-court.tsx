@@ -676,7 +676,7 @@ const findings = [
 const punishments = [
   { id: "none", label: "無需處分", icon: "○" },
   { id: "warning", label: "正式警告", icon: "!" },
-  { id: "compensation", label: "賠償店主", icon: "$" },
+  { id: "compensation", label: "賠償受影響一方", icon: "$" },
   { id: "fine", label: "罰款", icon: "¢" },
   { id: "service", label: "社會服務令", icon: "✦" },
   { id: "custody", label: "監禁", icon: "▥" },
@@ -1891,7 +1891,7 @@ export function PixelCourt() {
                   你的裁決：{selectedFindingLabel} · {selectedPunishmentLabel}
                 </span>
                 <span>
-                  參考裁決：{idealFindingLabel} · {idealPunishmentLabel}
+                  公平裁決：{idealFindingLabel} · {idealPunishmentLabel}
                 </span>
               </div>
               <p>{idealJudgment.reasoning}</p>
