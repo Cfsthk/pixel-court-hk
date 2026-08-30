@@ -24,7 +24,7 @@ for (const filename of ["index.html", "404.html", "index.rsc"]) {
 
   const rewritten = source.replace(
     /(["'(])\/(assets\/|favicon\.svg|og\.svg)/g,
-    "$1$2",
+    "$1./$2",
   );
   await writeFile(filepath, rewritten, "utf8");
 }
