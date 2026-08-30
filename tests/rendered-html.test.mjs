@@ -146,6 +146,30 @@ test("enforces the upper-primary case-length ladder", async () => {
   }
 });
 
+test("provides thirty playable cases for every grade", async () => {
+  const source = await readFile(
+    new URL("../app/expanded-case-bank.ts", import.meta.url),
+    "utf8",
+  );
+  const compiled = ts.transpileModule(source, {
+    compilerOptions: {
+      module: ts.ModuleKind.ESNext,
+      target: ts.ScriptTarget.ES2022,
+    },
+  }).outputText;
+  const moduleUrl = `data:text/javascript;base64,${Buffer.from(compiled).toString("base64")}`;
+  const { expandedCases, expandedIdealJudgments, casesByGrade } = await import(
+    moduleUrl
+  );
+  assert.equal(expandedCases.length, 180);
+  assert.equal(Object.keys(expandedIdealJudgments).length, 180);
+  for (const grade of [1, 2, 3, 4, 5, 6]) {
+    assert.equal(casesByGrade[grade].length, 30);
+    assert.ok(casesByGrade[grade].every((courtCase) => courtCase.grade === grade));
+    assert.ok(casesByGrade[grade].every((courtCase) => courtCase.questions.length === 5));
+  }
+});
+
 async function loadGeneratedCaseBatch(relativePath) {
   const source = await readFile(new URL(relativePath, import.meta.url), "utf8");
   const compiled = ts.transpileModule(source, {
