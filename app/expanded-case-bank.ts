@@ -601,51 +601,55 @@ const seeds: Seed[] = [
 
 const gradeProfiles = {
   1: {
-    targetCharacters: 250,
-    complexity: "單一事件、順序清楚",
+    targetCharacters: 170,
+    episodes: 2,
+    complexity: "兩個具體事件、順序清楚",
     vocabulary: "生活常用詞、簡單時間詞",
     edbFocus: "找出人物、物件及主要信息",
-    bridge: "先說明發生了甚麼，再說明結果。",
   },
   2: {
-    targetCharacters: 290,
-    complexity: "兩至三個事件、簡單因果",
+    targetCharacters: 240,
+    episodes: 3,
+    complexity: "三個具體事件、簡單因果",
     vocabulary: "常用詞、方位及原因詞",
     edbFocus: "連繫事件次序及簡單推論",
-    bridge: "留意事情先後，以及哪個行動帶來後果。",
   },
   3: {
-    targetCharacters: 360,
-    complexity: "多個時間點、原因與結果",
+    targetCharacters: 310,
+    episodes: 4,
+    complexity: "四個事件、明確原因與結果",
     vocabulary: "常用詞及部分抽象詞",
     edbFocus: "事實、推論及語意理解",
-    bridge: "比較兩方說法，找出支持或削弱各自觀點的資料。",
   },
   4: {
-    targetCharacters: 460,
-    complexity: "多步行動、共同後果",
+    targetCharacters: 420,
+    episodes: 5,
+    complexity: "五個事件、多步行動及兩項成因",
     vocabulary: "連接詞、情境及抽象詞",
     edbFocus: "整合信息、理解因果及詞語",
-    bridge: "把時間、動機、證據和後果連成完整解釋。",
   },
   5: {
-    targetCharacters: 560,
-    complexity: "多重原因、例外及補救",
+    targetCharacters: 530,
+    episodes: 6,
+    complexity: "六個事件、多重原因、觀點差異及補救",
     vocabulary: "較多抽象詞及書面表達",
     edbFocus: "比較觀點、判斷證據充分程度",
-    bridge: "分辨事實、推測和未獲證實的部分，再評估責任。",
   },
   6: {
-    targetCharacters: 680,
-    complexity: "交錯線索、權衡責任與影響",
+    targetCharacters: 640,
+    episodes: 7,
+    complexity: "七個事件、交錯線索、資料限制及反事實推理",
     vocabulary: "抽象詞、條件句及正式語體",
     edbFocus: "批判閱讀、整合及以證據論證",
-    bridge: "指出證據限制，權衡動機、程序和實際影響後作出判斷。",
   },
 } as const;
 
 function chineseLength(value: string) {
   return (value.match(/[\u3400-\u4dbf\u4e00-\u9fff]/g) ?? []).length;
+}
+
+function firstPerson(value: string) {
+  return value.replace(/(^|[，。；：])(?:他|她)/g, "$1我");
 }
 
 function q(
@@ -675,51 +679,51 @@ function buildCase(seed: Seed, grade: 1 | 2 | 3 | 4 | 5 | 6, index: number) {
   const profile = gradeProfiles[grade];
   const id = `g${grade}-${String(index + 1).padStart(2, "0")}`;
   const caseNumber = `P${grade}-${String(index + 1).padStart(2, "0")}`;
-  const factual = `${seed.time}，${seed.item}在${seed.place}成為爭議焦點。${seed.complainant}表示，${seed.allegation}。`;
-  const evidence = `現場記錄顯示：${seed.outcome}。`;
-  const prosecutionParagraphs = [
-    factual,
-    `${seed.complainant}補充，${seed.reason}，而且${seed.outcome}。這段陳詞形容這種情況時提到「${seed.targetWord}」。${profile.bridge}`,
-    `因此，${seed.complainant}認為${seed.respondent}應對事件負責，並指出當時需要更清楚的提醒、檢查或交接。`,
+  const respondentReason = firstPerson(seed.reason);
+  const respondentAction = firstPerson(seed.defenceAction);
+  const respondentAllegation = firstPerson(seed.allegation);
+  const respondentName = seed.respondent.trim().split(/\s+/).at(-1) ?? seed.respondent;
+  const prosecutionDetails = [
+    `${seed.time}，我在${seed.place}留意到${seed.item}出了問題。按我當時所知，我認為${seed.allegation}。`,
+    `我後來得知，${seed.outcome}。這個結果令我擔心同一情況會再次發生，所以我把自己記得的經過說出來。`,
+    `我記得的次序是先在上述時間發現問題，然後查看${seed.item}的狀況，最後才知道造成的影響。我沒有參與${respondentName}當時的每一個決定。`,
+    `就我的角度而言，問題不只是最後的結果，也包括事情發生前有沒有清楚提醒、檢查或交接。我所提出的是自己接觸過的情況，並不是轉述${respondentName}心裏的想法。`,
+    `我可以直接確認的是${seed.outcome}；至於${respondentName}當時為甚麼這樣做，我沒有親耳聽到完整解釋。我是按事情的先後和物件狀況，理解為${seed.allegation}。`,
+    `我也明白現場可能有我沒有留意到的因素。不過，在我發現問題的一刻，${seed.item}的狀況和原先預期不同，而這項差異確實影響了我、其他使用者或原有安排。`,
+    `假如事前有人把位置、時間或處理方法說得更清楚，我相信事情可能不會發展成同樣結果。可是，對於我不在場的片段，我只能說不知道，不能把推測當成自己親眼所見。`,
+    `我作出投訴，是希望交代事件對我的實際影響。即使後來有人補救，最初的問題和其後的處理仍是兩個先後相連、但不能混為一談的部分。`,
   ];
-  const defenceParagraphs = [
-    `${seed.respondent}承認事情在${seed.place}發生，但解釋自己當時${seed.reason}。他／她認為這是匆忙、標示不清或突發情況造成的疏忽。`,
-    `${seed.respondent}的說法是：${seed.defenceAction}。${evidence}`,
-    `辯方又指出，現有資料未必能證明所有細節；${profile.bridge}即使需要改善，也應先考慮實際影響和補救行動。`,
+  const defenceDetails = [
+    `${seed.time}，我在${seed.place}接觸過${seed.item}。當時，${respondentReason}。`,
+    `${respondentAction}。我沒有打算令任何人受損，也沒有故意隱瞞自己做過的事。`,
+    `我記得的次序是先遇到上述情況，之後才作出處理，最後得知${seed.outcome}。我承認結果出現了，但不同意${respondentAllegation}就是唯一解釋。`,
+    `在我的角度，當時的環境和手上的資料都影響了決定。若只看最後結果，便看不到我起初為甚麼那樣做，以及發現問題後採取了甚麼行動。`,
+    `我能直接交代的是自己的動機和行動：${respondentReason}。我的補救是：${respondentAction}。至於我看不見的時段發生過甚麼，我不會說自己能夠確定。`,
+    `我明白別人可能把這件事理解為${seed.allegation}。我的理解則是，當時的限制、標示或突發情況先出現，才令我的行動造成沒有預計的後果。`,
+    `如果當時已有更清楚的提醒、固定位置或核對程序，我會採取另一個做法。這是我事後才明白的地方，但不代表我在事發前已經知道所有風險。`,
+    `我願意承認處理方法有可改善之處，也願意交代補救經過。我希望別人分清我的原意、實際行動和最後結果，而不是把三者當成同一件事。`,
   ];
-  const extension = grade <= 2
-    ? [
-        `補充記錄提到，${seed.place}當日還有其他人經過，沒有人一直看着整件事。`,
-        `雙方都同意${seed.item}曾在這裏出現，也同意事情後有人處理。`,
-        `可是，誰先看見問題和誰應先提醒，兩邊的說法不完全一樣。`,
-        `法官要再看清楚物件、時間和人物做過的事情，才可以作決定。`,
-      ]
-    : grade <= 4
-      ? [
-          `補充紀錄提到，${seed.place}當日仍有其他人出入，沒有人能連續看見整個過程。`,
-          `雙方都同意${seed.item}曾在上述時間出現，也同意事件後有人作出處理。`,
-          `不過，關於誰先看見問題、誰應該先提醒，以及哪一項規則最清楚，兩篇陳詞並不完全相同。`,
-          `較完整的判斷需要同時查看物件狀況、時間記錄、現場安排，以及當事人事後採取的行動。`,
-        ]
-      : [
-          `補充紀錄提到，${seed.place}當日仍有其他人出入，沒有任何人能連續觀察整個過程。`,
-          `雙方都同意${seed.item}曾在上述時間出現，也同意事件後有人作出處理。`,
-          `若只依靠單一回憶，可能忽略環境、天氣、工具或其他人在場所造成的影響。`,
-          `讀者要分辨「看見」、「推測」和「已經證實」三種不同程度的資料。`,
-          `這些資料未必能直接回答責任問題，卻能幫助法官比較兩方解釋是否前後一致。`,
-          `公平決定不只看結果，也要考慮當時是否有合理動機、是否可以預見風險，以及是否願意補救。`,
-        ];
+  const prosecutionParagraphs: string[] = [prosecutionDetails[0]];
+  const defenceParagraphs: string[] = [defenceDetails[0]];
+  let prosecutionIndex = 1;
+  let defenceIndex = 1;
   let allText = [...prosecutionParagraphs, ...defenceParagraphs].join("");
-  let extensionIndex = 0;
   while (chineseLength(allText) < profile.targetCharacters) {
-    const sentence = extension[extensionIndex % extension.length];
-    if (extensionIndex % 2 === 0) {
-      prosecutionParagraphs.push(sentence);
+    const prosecutionLength = chineseLength(prosecutionParagraphs.join(""));
+    const defenceLength = chineseLength(defenceParagraphs.join(""));
+    if (prosecutionLength <= defenceLength && prosecutionDetails[prosecutionIndex]) {
+      prosecutionParagraphs.push(prosecutionDetails[prosecutionIndex]);
+      prosecutionIndex += 1;
+    } else if (defenceDetails[defenceIndex]) {
+      defenceParagraphs.push(defenceDetails[defenceIndex]);
+      defenceIndex += 1;
+    } else if (prosecutionDetails[prosecutionIndex]) {
+      prosecutionParagraphs.push(prosecutionDetails[prosecutionIndex]);
+      prosecutionIndex += 1;
     } else {
-      defenceParagraphs.push(sentence);
+      break;
     }
     allText = [...prosecutionParagraphs, ...defenceParagraphs].join("");
-    extensionIndex += 1;
   }
 
   const optionSets = {
@@ -839,7 +843,7 @@ function buildCase(seed: Seed, grade: 1 | 2 | 3 | 4 | 5 | 6, index: number) {
     summary: seed.summary,
     grade,
     difficulty: grade,
-    episodes: 2 + ((index + grade) % 4),
+    episodes: profile.episodes,
     complexity: profile.complexity,
     vocabulary: profile.vocabulary,
     edbFocus: profile.edbFocus,

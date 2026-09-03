@@ -41,8 +41,9 @@ test("server-renders Pixel Court", async () => {
 });
 
 test("ships the complete playable loop", async () => {
-  const [app, expanded, css, layout, packageJson] = await Promise.all([
+  const [app, activeBank, expanded, css, layout, packageJson] = await Promise.all([
     readFile(new URL("../app/pixel-court.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/active-case-bank.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/expanded-case-bank.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
@@ -68,8 +69,10 @@ test("ships the complete playable loop", async () => {
   assert.match(app, /optionChanges/);
   assert.match(app, /composite >= 80/);
   assert.match(app, /composite <= 50/);
-  assert.match(app, /expandedCases/);
+  assert.match(app, /activeCases/);
   assert.match(app, /casesByGrade/);
+  assert.match(activeBank, /expandedCases/);
+  assert.match(activeBank, /slice\(0, 30\)/);
   assert.match(app, /case-select-stage/);
   assert.match(app, /judgmentGrade/);
   assert.match(app, /公平判決比較/);
@@ -98,8 +101,12 @@ test("ships the complete playable loop", async () => {
   assert.match(expanded, /export const expandedCases/);
   assert.match(expanded, /export const expandedIdealJudgments/);
   assert.match(expanded, /export const casesByGrade/);
-  assert.match(expanded, /targetCharacters: 360/);
-  assert.match(expanded, /targetCharacters: 680/);
+  assert.match(expanded, /targetCharacters: 310/);
+  assert.match(expanded, /targetCharacters: 640/);
+  assert.doesNotMatch(
+    expanded,
+    /若只依靠單一回憶|這些資料未必能直接回答責任問題|補充紀錄提到|幫助法官/,
+  );
   assert.match(css, /@keyframes spriteTalk/);
   assert.match(css, /\.player-judge/);
   assert.match(css, /\.case-select-stage/);

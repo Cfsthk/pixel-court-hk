@@ -2,38 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  caseLibrary as authoredCases,
-  idealJudgments as authoredIdealJudgments,
-} from "./case-library";
-import { generatedCases, generatedIdealJudgments } from "./generated-cases";
-import {
-  generatedCases as generatedCases031To040,
-  generatedIdealJudgments as generatedIdealJudgments031To040,
-} from "./generated-cases-031-040";
-import {
-  expandedCases,
-  expandedIdealJudgments,
-} from "./expanded-case-bank";
-
-const legacyCases = [...authoredCases, ...generatedCases, ...generatedCases031To040];
-const allCases = [...legacyCases, ...expandedCases];
-const allIdealJudgments = {
-  ...authoredIdealJudgments,
-  ...generatedIdealJudgments,
-  ...generatedIdealJudgments031To040,
-  ...expandedIdealJudgments,
-};
-const casesByGrade = ([1, 2, 3, 4, 5, 6] as const).reduce(
-  (result, grade) => {
-    result[grade] = allCases.filter((courtCase) => courtCase.grade === grade).slice(0, 30);
-    return result;
-  },
-  {} as Record<1 | 2 | 3 | 4 | 5 | 6, typeof allCases>,
-);
-const caseLibrary = ([1, 2, 3, 4, 5, 6] as const).flatMap(
-  (grade) => casesByGrade[grade],
-);
-const idealJudgments = allIdealJudgments;
+  activeCases as caseLibrary,
+  activeCasesByGrade as casesByGrade,
+  activeIdealJudgments as idealJudgments,
+} from "./active-case-bank";
 
 type Screen =
   | "select"
